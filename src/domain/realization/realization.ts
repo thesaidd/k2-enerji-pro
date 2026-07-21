@@ -1,6 +1,6 @@
 import { createId } from '../../config/paymentPlans';
 import { buildDailyCashflow, buildSupplierEvents } from '../financing/financing';
-import { resolveGesExcessPurchasePrice } from '../ges/ges';
+import { calculateGesPeriod, resolveGesExcessPurchasePrice } from '../ges/ges';
 import {
   accrueMonthlyLateFeeDocuments,
   buildRealizationInvoiceSummaries,
@@ -35,6 +35,30 @@ import type {
 const sum = <T>(items: T[], value: (item: T) => number): number =>
   items.reduce((total, item) => total + value(item), 0);
 
+export const LEGACY_GES_WARNING =
+  'Eski teklif snapshot’ında dönemsel GES verisi bulunmadığı için ihtiyaç fazlası alımı güvenli legacy yöntemle yeniden oluşturuldu.';
+
+const allocateLegacyGesAmount = (periods: BillingPeriod[], total: number): number[] => {
+  if (periods.length === 0) return [];
+  const shares = periods.map((period) => Math.max(0, period.share));
+  const shareTotal = shares.reduce((current, share) => current + share, 0);
+  const weights = shareTotal > 0 ? shares : periods.map(() => 1);
+  const weightTotal = weights.reduce((current, weight) => current + weight, 0);
+  let allocated = 0;
+  return periods.map((_, index) => {
+    const amount =
+      index === periods.length - 1 ? total - allocated : (total * weights[index]!) / weightTotal;
+    allocated += amount;
+    return amount;
+  });
+};
+
+interface ScenarioPeriodGesData {
+  gridExportMwh: number;
+  excessProductionMwh: number;
+  excessPurchaseAmount?: number;
+}
+
 const scenarioPeriod = (
   period: BillingPeriod,
   offerRate: number,
@@ -44,6 +68,7 @@ const scenarioPeriod = (
   piuRate: number,
   marketPrice: MarketPriceSnapshot,
   ges: RealizationScenario['sourceOfferSnapshot']['stateSnapshot']['ges'],
+  gesData: ScenarioPeriodGesData,
 ): BillingPeriod => {
   const ptfAmount = period.gridConsumptionMwh * marketPrice.ptfUnitPrice;
   const yekdemAmount = period.gridConsumptionMwh * marketPrice.yekdemUnitPrice;
@@ -60,7 +85,8 @@ const scenarioPeriod = (
     marketPrice.ptfUnitPrice,
     marketPrice.yekdemUnitPrice,
   );
-  const excessPurchaseAmount = (period.excessProductionMwh ?? 0) * excessPurchasePrice;
+  const excessPurchaseAmount =
+    gesData.excessPurchaseAmount ?? gesData.excessProductionMwh * excessPurchasePrice;
   return {
     ...period,
     marketPriceMonth: marketPrice.month,
@@ -90,6 +116,8 @@ const scenarioPeriod = (
       (period.gridConsumptionMwh > 0 ? activeEnergySalesAmount / period.gridConsumptionMwh : 0),
     imbalanceAmount: (activeEnergyBaseAmount * imbalanceRate) / 100,
     piuAmount: (activeEnergyBaseAmount * piuRate) / 100,
+    gridExportMwh: gesData.gridExportMwh,
+    excessProductionMwh: gesData.excessProductionMwh,
     excessPurchasePrice,
     excessPurchaseAmount,
   };
@@ -103,7 +131,7 @@ export const calculateRealization = (
 ): RealizationResult => {
   const source = scenario.sourceOfferSnapshot.resultSnapshot;
   const state = scenario.sourceOfferSnapshot.stateSnapshot;
-  const adjustedPeriods = source.periods.map((period) => {
+  const periodContexts = source.periods.map((period) => {
     const override = scenario.periodOverrides.find((item) => item.periodId === period.id);
     const marketPrice = resolveRealizationMarketPrice(
       period,
@@ -113,6 +141,33 @@ export const calculateRealization = (
       state.ptfTlMwh,
       state.yekdemTlMwh,
     );
+    return { period, override, marketPrice };
+  });
+  const legacyGesUsed =
+    state.ges.mode === 'advanced_metering' &&
+    source.periods.some(
+      (period) => period.gridExportMwh == null || period.excessProductionMwh == null,
+    );
+  const canRebuildLegacyGesPhysical =
+    Number.isFinite(state.ges.gridExportMwh) || Number.isFinite(state.ges.excessAfterNettingMwh);
+  const legacyGesAmounts = allocateLegacyGesAmount(
+    source.periods,
+    Math.max(0, source.totals.excessProductionPurchase),
+  );
+  const adjustedPeriods = periodContexts.map(({ period, override, marketPrice }, index) => {
+    const legacyPhysicalMissing =
+      state.ges.mode === 'advanced_metering' &&
+      (period.gridExportMwh == null || period.excessProductionMwh == null);
+    const reconstructed = legacyPhysicalMissing
+      ? calculateGesPeriod(
+          period.grossConsumptionMwh,
+          period.share,
+          state.ges,
+          marketPrice.ptfUnitPrice,
+          marketPrice.yekdemUnitPrice,
+        )
+      : undefined;
+    const useAmountFallback = legacyPhysicalMissing && !canRebuildLegacyGesPhysical;
     return scenarioPeriod(
       period,
       override?.scenarioOfferRate ?? state.offerRate ?? 0,
@@ -122,6 +177,13 @@ export const calculateRealization = (
       state.piuRate,
       marketPrice,
       state.ges,
+      {
+        gridExportMwh: period.gridExportMwh ?? reconstructed?.gridExportMwh ?? 0,
+        excessProductionMwh:
+          period.excessProductionMwh ??
+          (useAmountFallback ? 0 : (reconstructed?.excessProductionMwh ?? 0)),
+        excessPurchaseAmount: useAmountFallback ? legacyGesAmounts[index] : undefined,
+      },
     );
   });
   const sourceInstallments = buildReceivableInstallments(adjustedPeriods, source.plannedPayments);
@@ -340,6 +402,7 @@ export const calculateRealization = (
       sum(monthlyProfit, (row) => row.cashResult) - cashflowNetEffect(actualCashflow),
     actualCashEvents,
     marketPriceWarnings: [
+      ...(legacyGesUsed ? [LEGACY_GES_WARNING] : []),
       ...new Set(periods.flatMap((period) => period.marketPriceWarnings ?? [])),
     ],
   };

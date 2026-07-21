@@ -15,8 +15,10 @@ import { useAppStore } from '../../app/store/useAppStore';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MetricCard } from '../../components/ui/MetricCard';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { ReconciliationStatusView } from '../../components/ui/ReconciliationStatus';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatMoney, formatNumber } from '../../components/ui/format';
+import { resolveReconciliationStatus } from '../../domain/profitability/reconciliation';
 
 export function MonthlyProfitPage() {
   const allOffers = useAppStore((state) => state.offers);
@@ -43,13 +45,16 @@ export function MonthlyProfitPage() {
     ...planned.map((row) => ({ source: 'Planlanan', row })),
     ...actual.map((row) => ({ source: 'Gerçekleşen', row })),
   ].sort((a, b) => a.row.month.localeCompare(b.row.month) || a.source.localeCompare(b.source));
-  const plannedReconciled =
-    Math.abs(offer?.resultSnapshot.profitReconciliationDifference ?? 0) <= 1e-6 &&
-    Math.abs(offer?.resultSnapshot.cashReconciliationDifference ?? 0) <= 1e-6;
-  const actualReconciled =
-    !scenario ||
-    (Math.abs(scenario.resultSnapshot.profitReconciliationDifference ?? 0) <= 1e-6 &&
-      Math.abs(scenario.resultSnapshot.cashReconciliationDifference ?? 0) <= 1e-6);
+  const plannedReconciliation = resolveReconciliationStatus(
+    offer?.resultSnapshot.profitReconciliationDifference,
+    offer?.resultSnapshot.cashReconciliationDifference,
+  );
+  const actualReconciliation = scenario
+    ? resolveReconciliationStatus(
+        scenario.resultSnapshot.profitReconciliationDifference,
+        scenario.resultSnapshot.cashReconciliationDifference,
+      )
+    : undefined;
   return (
     <div>
       <PageHeader
@@ -157,33 +162,20 @@ export function MonthlyProfitPage() {
             />
           </section>
           <section className="panel reconciliation-status">
-            <div>
-              <strong>Planlanan mutabakat</strong>{' '}
-              <StatusBadge tone={plannedReconciled ? 'positive' : 'warning'}>
-                {plannedReconciled ? 'Mutabık' : 'Mutabakat farkı'}
-              </StatusBadge>
-              <small>
-                Tahakkuk farkı{' '}
-                {formatMoney(offer.resultSnapshot.profitReconciliationDifference ?? 0)} · Nakit
-                farkı {formatMoney(offer.resultSnapshot.cashReconciliationDifference ?? 0)}
-              </small>
-            </div>
+            <ReconciliationStatusView
+              label="Planlanan mutabakat"
+              profitDifference={offer.resultSnapshot.profitReconciliationDifference}
+              cashDifference={offer.resultSnapshot.cashReconciliationDifference}
+            />
             {scenario && (
-              <div>
-                <strong>Gerçekleşen mutabakat</strong>{' '}
-                <StatusBadge tone={actualReconciled ? 'positive' : 'warning'}>
-                  {actualReconciled ? 'Mutabık' : 'Mutabakat farkı'}
-                </StatusBadge>
-                <small>
-                  Tahakkuk farkı{' '}
-                  {formatMoney(scenario.resultSnapshot.profitReconciliationDifference ?? 0)} ·
-                  Nakit farkı{' '}
-                  {formatMoney(scenario.resultSnapshot.cashReconciliationDifference ?? 0)}
-                </small>
-              </div>
+              <ReconciliationStatusView
+                label="Gerçekleşen mutabakat"
+                profitDifference={scenario.resultSnapshot.profitReconciliationDifference}
+                cashDifference={scenario.resultSnapshot.cashReconciliationDifference}
+              />
             )}
           </section>
-          {(!plannedReconciled || !actualReconciled) && (
+          {(plannedReconciliation === 'difference' || actualReconciliation === 'difference') && (
             <div className="notice warning">
               Finansal mutabakat farkı 1e-6 toleransını aşıyor. Kayıtlı snapshot bileşenlerini
               kontrol edin.

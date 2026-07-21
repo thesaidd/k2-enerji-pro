@@ -29,6 +29,7 @@ export type PaymentDateReference =
 export type GesMode = 'simple_self_consumption' | 'advanced_metering';
 export type MarketPriceSource = 'forecast' | 'actual' | 'legacy' | 'manual_override';
 export type CommissionBearer = 'epsas' | 'customer';
+export type ReconciliationStatus = 'reconciled' | 'difference' | 'not_calculated';
 
 export interface MonthlyMarketPrice {
   month: string;
@@ -349,8 +350,8 @@ export interface CalculationResult {
   openFinancingBalance: number;
   effectiveCreditRate: number;
   effectiveValorRate: number;
-  profitReconciliationDifference: number;
-  cashReconciliationDifference: number;
+  profitReconciliationDifference?: number;
+  cashReconciliationDifference?: number;
   totals: CalculationTotals;
   marketPriceSnapshot?: MarketPriceSnapshot[];
 }
@@ -592,8 +593,8 @@ export interface RealizationResult {
   financingEndDate?: ISODate;
   endingCashBalance: number;
   openFinancingBalance: number;
-  profitReconciliationDifference: number;
-  cashReconciliationDifference: number;
+  profitReconciliationDifference?: number;
+  cashReconciliationDifference?: number;
   actualCashEvents?: CashEvent[];
   marketPriceWarnings?: string[];
 }
