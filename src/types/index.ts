@@ -1,0 +1,404 @@
+export type ISODate = string;
+export type EnergyUnit = 'MWh' | 'kWh';
+export type RecordType = 'cost_draft' | 'planned_offer';
+export type PaymentChannel =
+  | 'cash'
+  | 'eft'
+  | 'bank_transfer'
+  | 'automatic_payment'
+  | 'credit_card_single'
+  | 'credit_card_installment'
+  | 'dbs'
+  | 'other';
+export type PaymentScope =
+  'each_period' | 'first_period' | 'last_period' | 'selected_periods' | 'contract_once';
+export type PaymentAmountType =
+  | 'period_invoice_percent'
+  | 'period_fixed_tl'
+  | 'period_remaining_balance'
+  | 'contract_total_percent'
+  | 'contract_fixed_tl';
+export type PaymentDateReference =
+  | 'usage_start'
+  | 'usage_end'
+  | 'period_start'
+  | 'period_end'
+  | 'invoice_date'
+  | 'fixed_day'
+  | 'manual_date';
+export type GesMode = 'simple_self_consumption' | 'advanced_metering';
+
+export interface Customer {
+  id: string;
+  name: string;
+  note?: string;
+  tag?: string;
+  createdAt: string;
+  updatedAt: string;
+  isArchived: boolean;
+}
+
+export interface GesSettings {
+  mode: GesMode;
+  selfConsumptionRate: number;
+  totalProductionMwh?: number;
+  simultaneousSelfConsumptionMwh?: number;
+  gridImportMwh?: number;
+  gridExportMwh?: number;
+  excessAfterNettingMwh?: number;
+  excessPurchasePrice?: number;
+  priceType?: 'regulated' | 'ptf' | 'ptf_yekdem' | 'manual';
+  nettingMethod?: 'monthly' | 'hourly' | 'manual';
+  excessProductionTaxMode?: 'manual' | 'no_tax_in_demo';
+  settlementMode?: 'cash_outflow' | 'invoice_offset';
+}
+
+export interface PaymentPlanRow {
+  id: string;
+  order: number;
+  enabled: boolean;
+  name: string;
+  applicationScope: PaymentScope;
+  selectedPeriods: number[];
+  amountType: PaymentAmountType;
+  amountValue: number;
+  dateReference: PaymentDateReference;
+  dayOffset: number;
+  fixedDay: number;
+  fixedDayMonthOffset: number;
+  manualDate?: ISODate;
+  paymentChannel: PaymentChannel;
+  installmentCount: number;
+  installmentIntervalDays: number;
+  merchantSettlementMode: 'upfront_net' | 'installment_settlement';
+  bankSettlementDelayDays: number;
+  commissionRate: number;
+  commissionBearer: 'epsas' | 'customer';
+  note?: string;
+}
+
+export interface ReconciliationSettings {
+  enabled: boolean;
+  reference: 'invoice_date' | 'period_end' | 'usage_end';
+  offsetDays: number;
+  overpaymentAction: 'carry_forward' | 'refund_after_days' | 'refund_at_contract_end';
+  refundOffsetDays: number;
+  underpaymentAction: 'collect_after_days' | 'carry_to_next_invoice' | 'leave_open';
+  collectionOffsetDays: number;
+  collectionChannel: PaymentChannel;
+  collectionCommissionRate: number;
+  collectionCommissionBearer: 'epsas' | 'customer';
+}
+
+export interface PaymentPlan {
+  version: 1;
+  id: string;
+  name: string;
+  templateId: string;
+  mode: 'template' | 'custom';
+  rows: PaymentPlanRow[];
+  reconciliation: ReconciliationSettings;
+}
+
+export interface OfferState {
+  customerId: string;
+  title: string;
+  usageStart: ISODate;
+  usageEnd: ISODate;
+  monthlyConsumption: number;
+  monthlyConsumptionUnit: EnergyUnit;
+  customerType: string;
+  kdvRate: number;
+  btvRate: number;
+  distributionUnitTlMwh: number;
+  hasDistribution: boolean;
+  contractPowerTl: number;
+  ptfTlMwh: number;
+  yekdemTlMwh: number;
+  offerRate?: number;
+  imbalanceRate: number;
+  piuRate: number;
+  creditRate: number;
+  valorRate: number;
+  yekdemDueOffset: number;
+  distributionDueOffset: number;
+  kdvDueOffset: number;
+  btvDueOffset: number;
+  ges: GesSettings;
+  paymentPlan: PaymentPlan;
+}
+
+export interface BillingPeriod {
+  id: string;
+  index: number;
+  start: ISODate;
+  end: ISODate;
+  invoiceDate: ISODate;
+  days: number;
+  monthFactor: number;
+  share: number;
+  grossConsumptionMwh: number;
+  gesSelfConsumptionMwh: number;
+  gridConsumptionMwh: number;
+  activeEnergyUnitPrice: number;
+  ptfAmount: number;
+  yekdemAmount: number;
+  activeEnergyBaseAmount: number;
+  offerMargin: number;
+  activeEnergySalesAmount: number;
+  distributionAmount: number;
+  contractPowerAmount: number;
+  btvBase: number;
+  btvAmount: number;
+  kdvBase: number;
+  kdvAmount: number;
+  grossInvoice: number;
+  gesSelfConsumptionSavings: number;
+  imbalanceAmount: number;
+  piuAmount: number;
+}
+
+export interface CashEvent {
+  id: string;
+  date: ISODate;
+  rawDate?: ISODate;
+  type:
+    | 'ptf'
+    | 'yekdem'
+    | 'distribution'
+    | 'contract_power'
+    | 'btv'
+    | 'kdv'
+    | 'customer_payment'
+    | 'customer_refund'
+    | 'excess_production_purchase'
+    | 'late_fee_payment';
+  direction: 'in' | 'out';
+  amount: number;
+  periodId?: string;
+  label: string;
+  note?: string;
+  channelCost?: number;
+  principalAmount?: number;
+}
+
+export interface PlannedPayment {
+  id: string;
+  periodId?: string;
+  planRowId: string;
+  planRowName: string;
+  transactionDate: ISODate;
+  settlementDate: ISODate;
+  paymentChannel: PaymentChannel;
+  principalAmount: number;
+  epsasChannelCost: number;
+  customerChannelFee: number;
+  netCashIn: number;
+  installmentNo: number;
+  installmentCount: number;
+  note?: string;
+}
+
+export interface DailyCashflowRow {
+  date: ISODate;
+  openingBalance: number;
+  supplierOutflows: number;
+  customerInflows: number;
+  lateFeeInflows: number;
+  refunds: number;
+  paymentChannelCosts: number;
+  balanceAfterOutflows: number;
+  interestBase: number;
+  creditInterest: number;
+  valorInterest: number;
+  closingBalance: number;
+  notes: string[];
+}
+
+export interface MonthlyProfitRow {
+  month: string;
+  consumptionMwh: number;
+  activeEnergySalesRevenue: number;
+  offerMargin: number;
+  imbalance: number;
+  piu: number;
+  channelCost: number;
+  creditInterest: number;
+  valorIncome: number;
+  lateFeeIncome: number;
+  accrualProfit: number;
+  cashInflows: number;
+  cashOutflows: number;
+  cashResult: number;
+}
+
+export interface CalculationTotals {
+  grossConsumptionMwh: number;
+  gesSelfConsumptionMwh: number;
+  gridConsumptionMwh: number;
+  ptfAmount: number;
+  yekdemAmount: number;
+  activeEnergyBaseAmount: number;
+  offerMargin: number;
+  activeEnergySalesAmount: number;
+  distributionAmount: number;
+  contractPowerAmount: number;
+  btvAmount: number;
+  kdvAmount: number;
+  grossInvoice: number;
+  gesSelfConsumptionSavings: number;
+  excessProductionPurchase: number;
+  imbalanceAmount: number;
+  piuAmount: number;
+  paymentChannelCost: number;
+  creditCost: number;
+  valorIncome: number;
+  operationalCost: number;
+  financingIncludedCost: number;
+  netProfit: number;
+  netProfitRate: number;
+  profitPerMwh: number;
+  unitSupplyCost: number;
+  breakevenUnitPrice: number;
+  breakevenOfferRate: number;
+  customerAdvantage: number;
+}
+
+export interface CalculationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  policyVersion: string;
+  calculatedAt: string;
+  state: OfferState;
+  periods: BillingPeriod[];
+  plannedPayments: PlannedPayment[];
+  cashEvents: CashEvent[];
+  plannedCashflow: DailyCashflowRow[];
+  monthlyProfit: MonthlyProfitRow[];
+  totals: CalculationTotals;
+}
+
+export interface CostDraft {
+  id: string;
+  recordType: 'cost_draft';
+  customerId: string;
+  title: string;
+  state: OfferState;
+  paymentPlan: PaymentPlan;
+  resultSnapshot: CalculationResult;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlannedOffer {
+  id: string;
+  recordType: 'planned_offer';
+  customerId: string;
+  version: number;
+  parentOfferId?: string;
+  title: string;
+  status: 'draft' | 'final' | 'archived';
+  stateSnapshot: OfferState;
+  paymentPlanSnapshot: PaymentPlan;
+  resultSnapshot: CalculationResult;
+  legacySnapshot?: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActualPayment {
+  id: string;
+  invoiceId?: string;
+  date: ISODate;
+  amount: number;
+  channel: PaymentChannel;
+  note?: string;
+}
+
+export interface PeriodRealizationOverride {
+  periodId: string;
+  creditRate?: number;
+  valorRate?: number;
+  scenarioOfferRate?: number;
+  calculationDate?: ISODate;
+}
+
+export interface LateFeeSegment {
+  startDate: ISODate;
+  endDate: ISODate;
+  days: number;
+  principal: number;
+  lateFee: number;
+}
+
+export interface InvoiceDelinquency {
+  invoiceId: string;
+  outstandingPrincipal: number;
+  delayDays: number;
+  segments: LateFeeSegment[];
+  lateFee: number;
+  lateFeeVat: number;
+  totalLateFeeReceivable: number;
+}
+
+export interface PeriodRealizationResult {
+  periodId: string;
+  plannedInvoice: number;
+  plannedDueDate?: ISODate;
+  actualPayments: ActualPayment[];
+  outstandingPrincipal: number;
+  delayDays: number;
+  lateFee: number;
+  lateFeeVat: number;
+  actualCreditCost: number;
+  actualValorIncome: number;
+  scenarioOfferRate: number;
+  plannedNetProfit: number;
+  actualNetProfit: number;
+  variance: number;
+  delinquency: InvoiceDelinquency;
+}
+
+export interface RealizationResult {
+  periods: PeriodRealizationResult[];
+  actualCashflow: DailyCashflowRow[];
+  monthlyProfit: MonthlyProfitRow[];
+  plannedProfit: number;
+  actualProfit: number;
+  variance: number;
+  totalLateFee: number;
+  totalLateFeeVat: number;
+  endingOpenReceivable: number;
+}
+
+export interface RealizationScenario {
+  id: string;
+  sourceCustomerId: string;
+  sourceOfferId: string;
+  sourceOfferVersion: number;
+  sourceOfferSnapshot: PlannedOffer;
+  name: string;
+  asOfDate: ISODate;
+  periodOverrides: PeriodRealizationOverride[];
+  actualPayments: ActualPayment[];
+  resultSnapshot: RealizationResult;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LateFeeSettings {
+  monthlyRate: number;
+  dayBasis: 360;
+  useInvoiceVatRate: true;
+  compound: false;
+  includeWeekendsAndHolidays: true;
+}
+
+export interface AppSettings {
+  id: 'app';
+  theme: 'light' | 'dark' | 'system';
+  holidays: ISODate[];
+  lateFee: LateFeeSettings;
+  policyVersion: string;
+}
