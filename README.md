@@ -203,3 +203,5 @@ Rapor ekranında maliyet analizi, müşteri teklifi, iç kârlılık, planlanan/
 Domain fonksiyonları tarayıcı API'lerinden bağımsızdır ve sunucu paketine taşınabilir. Backend geçişinde Dexie repository arayüzleri HTTP/API repository'leriyle değiştirilmeli; snapshot ve politika sürümü korunmalıdır. Para alanları veritabanında sabit hassasiyetli decimal tipinde tutulmalı, kimlik ve zaman damgaları sunucu tarafından üretilmeli, transaction ve optimistic concurrency uygulanmalıdır.
 
 Kimlik doğrulama, rol bazlı yetki, tenant/müşteri ayrımı, değiştirilemez audit log, resmi tarife sürümleme, sunucu tarafı PDF/XLSX üretimi ve migration idempotency anahtarları backend kapsamına alınmalıdır. Aynı golden ve regression testleri hem frontend domain paketinde hem backend hesap servisinde çalıştırılmalıdır.
+#   t h e s a i d d d . g i t h u b . i o  
+ 
