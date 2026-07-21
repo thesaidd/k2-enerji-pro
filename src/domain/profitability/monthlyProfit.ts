@@ -1,11 +1,15 @@
-import { format, parseISO } from 'date-fns';
-import type { BillingPeriod, DailyCashflowRow, MonthlyProfitRow } from '../../types';
+import { FINANCING_ALLOCATION_METHOD, profitLedgerImpact } from './profitLedger';
+import type {
+  BillingPeriod,
+  DailyCashflowRow,
+  MonthlyProfitRow,
+  ProfitLedgerEntry,
+} from '../../types';
 
 export const calculateMonthlyProfit = (
   periods: BillingPeriod[],
   cashflow: DailyCashflowRow[],
-  channelCostTotal: number,
-  lateFeesByMonth: Record<string, number> = {},
+  profitLedger: ProfitLedgerEntry[],
 ): MonthlyProfitRow[] => {
   const months = new Map<string, MonthlyProfitRow>();
   const ensure = (month: string): MonthlyProfitRow => {
@@ -21,45 +25,57 @@ export const calculateMonthlyProfit = (
       channelCost: 0,
       creditInterest: 0,
       valorIncome: 0,
-      lateFeeIncome: lateFeesByMonth[month] ?? 0,
+      lateFeeIncome: 0,
+      excessProductionPurchase: 0,
       accrualProfit: 0,
       cashInflows: 0,
       cashOutflows: 0,
+      supplierOutflows: 0,
+      refunds: 0,
+      lateFeeCashInflows: 0,
+      cashCreditInterest: 0,
+      cashValorIncome: 0,
       cashResult: 0,
+      financingAllocationMethod: FINANCING_ALLOCATION_METHOD,
+      reconciliationDifference: 0,
     };
     months.set(month, created);
     return created;
   };
-  const invoiceTotal = periods.reduce((sum, period) => sum + period.grossInvoice, 0);
   for (const period of periods) {
-    const month = period.start.slice(0, 7);
-    const row = ensure(month);
+    const row = ensure(period.start.slice(0, 7));
     row.consumptionMwh += period.gridConsumptionMwh;
     row.activeEnergySalesRevenue += period.activeEnergySalesAmount;
-    row.offerMargin += period.offerMargin;
-    row.imbalance += period.imbalanceAmount;
-    row.piu += period.piuAmount;
-    row.channelCost +=
-      invoiceTotal > 0 ? (channelCostTotal * period.grossInvoice) / invoiceTotal : 0;
+  }
+  for (const entry of profitLedger) {
+    const row = ensure(entry.economicMonth);
+    if (entry.component === 'offer_margin') row.offerMargin += entry.amount;
+    else if (entry.component === 'imbalance') row.imbalance += entry.amount;
+    else if (entry.component === 'piu') row.piu += entry.amount;
+    else if (entry.component === 'payment_channel_cost') row.channelCost += entry.amount;
+    else if (entry.component === 'credit_interest') row.creditInterest += entry.amount;
+    else if (entry.component === 'valor_income') row.valorIncome += entry.amount;
+    else if (entry.component === 'late_fee_income') row.lateFeeIncome += entry.amount;
+    else if (entry.component === 'excess_production_purchase')
+      row.excessProductionPurchase += entry.amount;
+    row.accrualProfit += profitLedgerImpact(entry);
   }
   for (const day of cashflow) {
-    const month = format(parseISO(day.date), 'yyyy-MM');
-    const row = ensure(month);
-    row.creditInterest += day.creditInterest;
-    row.valorIncome += day.valorInterest;
+    const row = ensure(day.date.slice(0, 7));
     row.cashInflows += day.customerInflows + day.lateFeeInflows;
+    row.lateFeeCashInflows += day.lateFeeInflows;
+    row.supplierOutflows += day.supplierOutflows;
+    row.refunds += day.refunds;
+    row.cashCreditInterest += day.creditInterest;
+    row.cashValorIncome += day.valorInterest;
     row.cashOutflows += day.supplierOutflows + day.refunds + day.creditInterest;
-  }
-  for (const row of months.values()) {
-    row.accrualProfit =
-      row.offerMargin -
-      row.imbalance -
-      row.piu -
-      row.channelCost -
-      row.creditInterest +
-      row.valorIncome +
-      row.lateFeeIncome;
-    row.cashResult = row.cashInflows - row.cashOutflows;
+    row.cashResult +=
+      day.customerInflows +
+      day.lateFeeInflows -
+      day.supplierOutflows -
+      day.refunds -
+      day.creditInterest +
+      day.valorInterest;
   }
   return [...months.values()].sort((a, b) => a.month.localeCompare(b.month));
 };

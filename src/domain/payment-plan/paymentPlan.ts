@@ -88,6 +88,8 @@ export const calculatePlannedPayments = (
           transactionDate,
           settlementDate,
           paymentChannel: rule.paymentChannel,
+          commissionRate: rule.commissionRate,
+          commissionBearer: rule.commissionBearer,
           principalAmount: installmentPrincipal,
           epsasChannelCost,
           customerChannelFee: rule.commissionBearer === 'customer' ? commission : 0,

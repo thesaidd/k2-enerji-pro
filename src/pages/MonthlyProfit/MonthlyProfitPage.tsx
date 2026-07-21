@@ -15,6 +15,7 @@ import { useAppStore } from '../../app/store/useAppStore';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MetricCard } from '../../components/ui/MetricCard';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatMoney, formatNumber } from '../../components/ui/format';
 
 export function MonthlyProfitPage() {
@@ -38,6 +39,17 @@ export function MonthlyProfitPage() {
   const selectedCustomer = offer
     ? customers.find((customer) => customer.id === offer.customerId)
     : undefined;
+  const detailedRows = [
+    ...planned.map((row) => ({ source: 'Planlanan', row })),
+    ...actual.map((row) => ({ source: 'Gerçekleşen', row })),
+  ].sort((a, b) => a.row.month.localeCompare(b.row.month) || a.source.localeCompare(b.source));
+  const plannedReconciled =
+    Math.abs(offer?.resultSnapshot.profitReconciliationDifference ?? 0) <= 1e-6 &&
+    Math.abs(offer?.resultSnapshot.cashReconciliationDifference ?? 0) <= 1e-6;
+  const actualReconciled =
+    !scenario ||
+    (Math.abs(scenario.resultSnapshot.profitReconciliationDifference ?? 0) <= 1e-6 &&
+      Math.abs(scenario.resultSnapshot.cashReconciliationDifference ?? 0) <= 1e-6);
   return (
     <div>
       <PageHeader
@@ -113,6 +125,11 @@ export function MonthlyProfitPage() {
               </p>
             </article>
           </div>
+          <div className="notice info">
+            Ortak sözleşme bakiyesinden doğan kredi ve valör, dönem brüt fatura payıyla;
+            brüt toplam sıfırsa dönem payıyla dağıtılır. Floating-point kalan son döneme
+            verilerek sözleşme toplamı korunur.
+          </div>
           <section className="metric-grid four">
             <MetricCard
               label="Planlanan tahakkuk kârı"
@@ -139,6 +156,39 @@ export function MonthlyProfitPage() {
               }
             />
           </section>
+          <section className="panel reconciliation-status">
+            <div>
+              <strong>Planlanan mutabakat</strong>{' '}
+              <StatusBadge tone={plannedReconciled ? 'positive' : 'warning'}>
+                {plannedReconciled ? 'Mutabık' : 'Mutabakat farkı'}
+              </StatusBadge>
+              <small>
+                Tahakkuk farkı{' '}
+                {formatMoney(offer.resultSnapshot.profitReconciliationDifference ?? 0)} · Nakit
+                farkı {formatMoney(offer.resultSnapshot.cashReconciliationDifference ?? 0)}
+              </small>
+            </div>
+            {scenario && (
+              <div>
+                <strong>Gerçekleşen mutabakat</strong>{' '}
+                <StatusBadge tone={actualReconciled ? 'positive' : 'warning'}>
+                  {actualReconciled ? 'Mutabık' : 'Mutabakat farkı'}
+                </StatusBadge>
+                <small>
+                  Tahakkuk farkı{' '}
+                  {formatMoney(scenario.resultSnapshot.profitReconciliationDifference ?? 0)} ·
+                  Nakit farkı{' '}
+                  {formatMoney(scenario.resultSnapshot.cashReconciliationDifference ?? 0)}
+                </small>
+              </div>
+            )}
+          </section>
+          {(!plannedReconciled || !actualReconciled) && (
+            <div className="notice warning">
+              Finansal mutabakat farkı 1e-6 toleransını aşıyor. Kayıtlı snapshot bileşenlerini
+              kontrol edin.
+            </div>
+          )}
           <section className="panel">
             <div className="panel-heading">
               <div>
@@ -203,6 +253,7 @@ export function MonthlyProfitPage() {
               <table>
                 <thead>
                   <tr>
+                    <th>Kaynak</th>
                     <th>Ay</th>
                     <th>Tüketim</th>
                     <th>Aktif enerji geliri</th>
@@ -212,16 +263,26 @@ export function MonthlyProfitPage() {
                     <th>Kanal maliyeti</th>
                     <th>Kredi</th>
                     <th>Valör</th>
+                    <th>GES ihtiyaç fazlası</th>
                     <th>Gecikme geliri</th>
                     <th>Tahakkuk kârı</th>
                     <th>Nakit girişi</th>
-                    <th>Nakit çıkışı</th>
+                    <th>Gecikme nakit girişi</th>
+                    <th>Tedarikçi/vergi çıkışı</th>
+                    <th>İadeler</th>
+                    <th>Nakit kredi</th>
+                    <th>Nakit valör</th>
                     <th>Nakit sonucu</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {planned.map((row) => (
-                    <tr key={row.month}>
+                  {detailedRows.map(({ source, row }) => (
+                    <tr key={`${source}-${row.month}`}>
+                      <td>
+                        <StatusBadge tone={source === 'Planlanan' ? 'info' : 'positive'}>
+                          {source}
+                        </StatusBadge>
+                      </td>
                       <td>
                         <strong>{row.month}</strong>
                       </td>
@@ -233,12 +294,17 @@ export function MonthlyProfitPage() {
                       <td>{formatMoney(row.channelCost)}</td>
                       <td>{formatMoney(row.creditInterest)}</td>
                       <td>{formatMoney(row.valorIncome)}</td>
+                      <td>{formatMoney(row.excessProductionPurchase ?? 0)}</td>
                       <td>{formatMoney(row.lateFeeIncome)}</td>
                       <td className={row.accrualProfit >= 0 ? 'positive-text' : 'negative-text'}>
                         <strong>{formatMoney(row.accrualProfit)}</strong>
                       </td>
                       <td>{formatMoney(row.cashInflows)}</td>
-                      <td>{formatMoney(row.cashOutflows)}</td>
+                      <td>{formatMoney(row.lateFeeCashInflows ?? 0)}</td>
+                      <td>{formatMoney(row.supplierOutflows ?? 0)}</td>
+                      <td>{formatMoney(row.refunds ?? 0)}</td>
+                      <td>{formatMoney(row.cashCreditInterest ?? 0)}</td>
+                      <td>{formatMoney(row.cashValorIncome ?? 0)}</td>
                       <td className={row.cashResult >= 0 ? 'positive-text' : 'negative-text'}>
                         <strong>{formatMoney(row.cashResult)}</strong>
                       </td>

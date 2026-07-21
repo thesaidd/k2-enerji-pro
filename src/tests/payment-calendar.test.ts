@@ -66,6 +66,8 @@ const realizationScenario = (): RealizationScenario => {
         date: '2026-08-20',
         amount: offer.resultSnapshot.periods[0]!.grossInvoice / 2,
         channel: 'eft' as const,
+        commissionRate: 2,
+        commissionBearer: 'epsas' as const,
       },
     ],
     createdAt: '2026-07-01',
@@ -199,6 +201,18 @@ describe('gerçekleşen ödeme/kullanım takvimi', () => {
       const documentDay = calendar.rows.find((row) => row.date === document.issueDate)!;
       expect(documentDay.notes.join(' ')).toContain(document.title);
     }
+    expect(calendar.summary.calculationEndDate).toBe(scenario.asOfDate);
+    expect(calendar.summary.effectiveCreditRate).toBe(
+      scenario.resultSnapshot.effectiveCreditRate,
+    );
+    expect(calendar.summary.totalPaymentChannelCost).toBeCloseTo(
+      scenario.resultSnapshot.actualPaymentChannelCost,
+      8,
+    );
+    expect(calendar.summary.openFinancingBalance).toBeCloseTo(
+      scenario.resultSnapshot.openFinancingBalance,
+      8,
+    );
   });
 
   it('planlanan ve gerçekleşen kaynakları birbirine karıştırmaz', () => {

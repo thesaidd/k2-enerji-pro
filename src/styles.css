@@ -1847,6 +1847,30 @@ td small {
   align-items: baseline;
   gap: 8px 18px;
 }
+
+.financial-preview {
+  justify-content: flex-end;
+  min-height: 72px;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.financial-preview strong {
+  font-size: 1.05rem;
+}
+
+.reconciliation-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+}
+
+.reconciliation-status > div {
+  display: grid;
+  gap: 0.4rem;
+}
 .calendar-source-summary small {
   width: 100%;
   color: var(--muted);

@@ -213,7 +213,11 @@ export function PaymentCalendarPage() {
               value={formatMoney(model.summary.totalCashOutflow)}
             />
             <MetricCard
-              label="Ödeme kanalı maliyeti"
+              label={
+                model.sourceType === 'realization_scenario'
+                  ? 'Gerçek kanal maliyeti'
+                  : 'Ödeme kanalı maliyeti'
+              }
               value={formatMoney(model.summary.totalPaymentChannelCost)}
             />
             <MetricCard
@@ -241,6 +245,27 @@ export function PaymentCalendarPage() {
             />
             <MetricCard label="Açık alacak" value={formatMoney(model.summary.openReceivable)} />
             <MetricCard label="Müşteri avansı" value={formatMoney(model.summary.customerAdvance)} />
+            <MetricCard
+              label="Hesaplama bitiş tarihi"
+              value={model.summary.calculationEndDate || '—'}
+            />
+            <MetricCard
+              label="Efektif kredi oranı"
+              value={`%${formatNumber(model.summary.effectiveCreditRate, 2)}`}
+            />
+            <MetricCard
+              label="Efektif valör oranı"
+              value={`%${formatNumber(model.summary.effectiveValorRate, 2)}`}
+            />
+            <MetricCard
+              label="Gerçek GES ihtiyaç fazlası alımı"
+              value={formatMoney(model.summary.totalExcessProductionPurchase)}
+            />
+            <MetricCard
+              label="Açık finansman bakiyesi"
+              value={formatMoney(model.summary.openFinancingBalance)}
+              tone={model.summary.openFinancingBalance > 0 ? 'negative' : 'neutral'}
+            />
           </section>
           <section className="panel no-print">
             <div className="form-grid four">
