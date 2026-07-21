@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import {
   ArrowLeft,
+  CalendarDays,
   CalendarClock,
   CheckSquare2,
   CirclePlus,
@@ -17,6 +18,8 @@ import {
   createRealizationScenario,
   newActualPaymentId,
 } from '../../domain/realization/realization';
+import { paymentCalendarUrl } from '../../domain/payment-calendar/paymentCalendar';
+import { marketPriceSourceLabel } from '../../domain/market-prices/marketPrices';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MetricCard } from '../../components/ui/MetricCard';
 import { NumberField } from '../../components/ui/NumberField';
@@ -64,6 +67,7 @@ function ScenarioList() {
   const offers = allOffers.filter((offer) => offer.status === 'final');
   const scenarios = useAppStore((state) => state.scenarios);
   const saveScenario = useAppStore((state) => state.saveScenario);
+  const settings = useAppStore((state) => state.settings);
   const [customerId, setCustomerId] = useState('');
   const [offerId, setOfferId] = useState('');
   const [name, setName] = useState('Gerçekleşen Durum');
@@ -72,7 +76,12 @@ function ScenarioList() {
     event.preventDefault();
     const offer = offers.find((item) => item.id === offerId);
     if (!offer) return;
-    const scenario = createRealizationScenario(offer, name);
+    const scenario = createRealizationScenario(
+      offer,
+      name,
+      settings.monthlyMarketPrices,
+      settings.holidays,
+    );
     await saveScenario(scenario);
     navigate(`/realization/${scenario.id}`);
   };
@@ -201,7 +210,8 @@ function ScenarioList() {
 
 function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScenario }) {
   const saveScenario = useAppStore((state) => state.saveScenario);
-  const monthlyRate = useAppStore((state) => state.settings.lateFee.monthlyRate);
+  const settings = useAppStore((state) => state.settings);
+  const monthlyRate = settings.lateFee.monthlyRate;
   const [scenario, setScenario] = useState<RealizationScenario>(() =>
     structuredClone(initialScenario),
   );
@@ -214,8 +224,9 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
     note: '',
   });
   const result = useMemo(
-    () => calculateRealization(scenario, monthlyRate),
-    [scenario, monthlyRate],
+    () =>
+      calculateRealization(scenario, monthlyRate, settings.monthlyMarketPrices, settings.holidays),
+    [scenario, monthlyRate, settings.holidays, settings.monthlyMarketPrices],
   );
   const updateScenario = (patch: Partial<RealizationScenario>) =>
     setScenario({ ...scenario, ...patch, resultSnapshot: result });
@@ -244,6 +255,19 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
       ],
     });
   };
+  const updateMarketOverride = (
+    periodId: string,
+    key: 'ptfUnitPrice' | 'yekdemUnitPrice',
+    value: number | undefined,
+  ) => {
+    const current = scenario.periodOverrides.find((override) => override.periodId === periodId);
+    updateScenario({
+      periodOverrides: [
+        ...scenario.periodOverrides.filter((override) => override.periodId !== periodId),
+        { ...current, periodId, [key]: value },
+      ],
+    });
+  };
   return (
     <div>
       <Link to="/realization" className="back-link">
@@ -254,18 +278,31 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
         title={scenario.name}
         description={`Hesaplama tarihi ${formatDate(scenario.asOfDate)} · Şirket aylık gecikme oranı %${formatNumber(monthlyRate, 2)}`}
         actions={
-          <button
-            className="button primary"
-            onClick={() => void saveScenario({ ...scenario, resultSnapshot: result })}
-          >
-            <Save size={16} /> Senaryoyu kaydet
-          </button>
+          <div className="page-actions">
+            <Link
+              className="button secondary"
+              to={paymentCalendarUrl('realization_scenario', scenario.id)}
+            >
+              <CalendarDays size={16} /> Ödeme / Kullanım Takvimini Aç
+            </Link>
+            <button
+              className="button primary"
+              onClick={() => void saveScenario({ ...scenario, resultSnapshot: result })}
+            >
+              <Save size={16} /> Senaryoyu kaydet
+            </button>
+          </div>
         }
       />
       <div className="notice warning">
         <strong>Bu ekran kaynak teklifi değiştirmez.</strong> Yaptığınız değişiklikler yalnızca
         gerçekleşme / what-if senaryosunu etkiler.
       </div>
+      {result.marketPriceWarnings?.map((warning) => (
+        <div className="notice warning" key={warning}>
+          {warning}
+        </div>
+      ))}
       <section className="metric-grid four">
         <MetricCard label="Planlanan net kâr" value={formatMoney(result.plannedProfit)} />
         <MetricCard
@@ -479,6 +516,7 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
                 </th>
                 <th>Dönem</th>
                 <th>Planlanan fatura / vade</th>
+                <th>PTF / YEKDEM</th>
                 <th>Gerçek tahsilat</th>
                 <th>Açık ana para</th>
                 <th>Gecikme</th>
@@ -500,6 +538,53 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
                           event.target.checked
                             ? [...selectedPeriods, period.periodId]
                             : selectedPeriods.filter((id) => id !== period.periodId),
+                        )
+                      }
+                    />
+                  </td>
+                  <td>
+                    <strong>
+                      {formatNumber(period.ptfUnitPrice ?? 0, 3)} /{' '}
+                      {formatNumber(period.yekdemUnitPrice ?? 0, 3)} TL/MWh
+                    </strong>
+                    <small>
+                      {marketPriceSourceLabel(period.ptfPriceSource, 'realization')} /{' '}
+                      {marketPriceSourceLabel(period.yekdemPriceSource, 'realization')}
+                    </small>
+                    <input
+                      aria-label={`${period.periodId} manuel PTF`}
+                      type="number"
+                      step="0.001"
+                      placeholder="Manuel PTF"
+                      value={
+                        scenario.periodOverrides.find(
+                          (override) => override.periodId === period.periodId,
+                        )?.ptfUnitPrice ?? ''
+                      }
+                      onChange={(event) =>
+                        updateMarketOverride(
+                          period.periodId,
+                          'ptfUnitPrice',
+                          event.target.value === '' ? undefined : Number(event.target.value),
+                        )
+                      }
+                    />
+                    <input
+                      aria-label={`${period.periodId} manuel YEKDEM`}
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      placeholder="Manuel YEKDEM"
+                      value={
+                        scenario.periodOverrides.find(
+                          (override) => override.periodId === period.periodId,
+                        )?.yekdemUnitPrice ?? ''
+                      }
+                      onChange={(event) =>
+                        updateMarketOverride(
+                          period.periodId,
+                          'yekdemUnitPrice',
+                          event.target.value === '' ? undefined : Number(event.target.value),
                         )
                       }
                     />

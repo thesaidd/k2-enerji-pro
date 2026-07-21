@@ -1,4 +1,5 @@
 import { db } from './database';
+import { normalizeAppSettings } from './SettingsRepository';
 import type {
   AppSettings,
   CostDraft,
@@ -17,6 +18,24 @@ export interface BackupPayload {
   settings: AppSettings[];
 }
 
+const array = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+export const normalizeBackupPayload = (input: unknown): BackupPayload => {
+  if (!input || typeof input !== 'object') throw new Error('Yedek içeriği geçersiz.');
+  const payload = input as Partial<BackupPayload>;
+  if (payload.version !== 'K2-ENERJIPRO-3.0')
+    throw new Error('Bu dosya K2 EnerjiPro 3.0 yedeği değil.');
+  return {
+    version: 'K2-ENERJIPRO-3.0',
+    exportedAt: typeof payload.exportedAt === 'string' ? payload.exportedAt : '',
+    customers: structuredClone(array<Customer>(payload.customers)),
+    costDrafts: structuredClone(array<CostDraft>(payload.costDrafts)),
+    plannedOffers: structuredClone(array<PlannedOffer>(payload.plannedOffers)),
+    realizationScenarios: structuredClone(array<RealizationScenario>(payload.realizationScenarios)),
+    settings: array<AppSettings>(payload.settings).map(normalizeAppSettings),
+  };
+};
+
 export const DataPortabilityService = {
   export: async (): Promise<BackupPayload> => ({
     version: 'K2-ENERJIPRO-3.0',
@@ -25,11 +44,10 @@ export const DataPortabilityService = {
     costDrafts: await db.costDrafts.toArray(),
     plannedOffers: await db.plannedOffers.toArray(),
     realizationScenarios: await db.realizationScenarios.toArray(),
-    settings: await db.settings.toArray(),
+    settings: (await db.settings.toArray()).map(normalizeAppSettings),
   }),
-  restore: async (payload: BackupPayload): Promise<void> => {
-    if (payload.version !== 'K2-ENERJIPRO-3.0')
-      throw new Error('Bu dosya K2 EnerjiPro 3.0 yedeği değil.');
+  restore: async (input: unknown): Promise<void> => {
+    const payload = normalizeBackupPayload(input);
     await db.transaction(
       'rw',
       [db.customers, db.costDrafts, db.plannedOffers, db.realizationScenarios, db.settings],

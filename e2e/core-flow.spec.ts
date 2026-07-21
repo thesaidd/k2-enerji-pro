@@ -13,6 +13,15 @@ test('müşteriden rapora uçtan uca planlanan ve gerçekleşen akış', async (
   });
   await page.reload();
 
+  await page.getByRole('link', { name: 'Ayarlar' }).click();
+  await page.getByRole('button', { name: 'Yeni ay ekle' }).click();
+  const marketRow = page.locator('.market-price-table tbody tr').last();
+  await marketRow.getByLabel('Ay', { exact: true }).fill('2026-07');
+  await marketRow.getByLabel('Tahmini PTF').fill('3200');
+  await marketRow.getByLabel('Tahmini YEKDEM').fill('400');
+  await page.getByRole('button', { name: 'Piyasa verilerini kaydet' }).click();
+  await expect(page.getByText('Piyasa verileri başarıyla kaydedildi')).toBeVisible();
+
   await page.getByRole('link', { name: 'Müşteriler' }).click();
   await page.getByRole('button', { name: 'Yeni müşteri' }).click();
   await page.getByLabel('Müşteri adı').fill('ABC Sanayi');

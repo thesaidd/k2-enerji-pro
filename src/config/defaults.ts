@@ -46,4 +46,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
     includeWeekendsAndHolidays: true,
   },
   policyVersion: CALCULATION_POLICY_VERSION,
+  monthlyMarketPrices: [],
 };

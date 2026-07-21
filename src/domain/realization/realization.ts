@@ -1,5 +1,5 @@
 import { createId } from '../../config/paymentPlans';
-import { buildDailyCashflow } from '../financing/financing';
+import { buildDailyCashflow, buildSupplierEvents } from '../financing/financing';
 import {
   accrueMonthlyLateFeeDocuments,
   buildRealizationInvoiceSummaries,
@@ -7,6 +7,7 @@ import {
 import { calculateLedgerInvoiceDelinquency } from '../late-fee/lateFee';
 import { calculateMonthlyProfit } from '../profitability/monthlyProfit';
 import { allocatePaymentsToReceivables, buildReceivableInstallments } from '../receivables/ledger';
+import { resolveRealizationMarketPrice } from '../market-prices/marketPrices';
 import type {
   ActualPayment,
   BillingPeriod,
@@ -14,6 +15,8 @@ import type {
   PeriodRealizationResult,
   RealizationResult,
   RealizationScenario,
+  MonthlyMarketPrice,
+  MarketPriceSnapshot,
 } from '../../types';
 
 const scenarioPeriod = (
@@ -21,9 +24,15 @@ const scenarioPeriod = (
   offerRate: number,
   btvRate: number,
   kdvRate: number,
+  imbalanceRate: number,
+  piuRate: number,
+  marketPrice: MarketPriceSnapshot,
 ): BillingPeriod => {
-  const offerMargin = (period.activeEnergyBaseAmount * offerRate) / 100;
-  const activeEnergySalesAmount = period.activeEnergyBaseAmount + offerMargin;
+  const ptfAmount = period.gridConsumptionMwh * marketPrice.ptfUnitPrice;
+  const yekdemAmount = period.gridConsumptionMwh * marketPrice.yekdemUnitPrice;
+  const activeEnergyBaseAmount = ptfAmount + yekdemAmount;
+  const offerMargin = (activeEnergyBaseAmount * offerRate) / 100;
+  const activeEnergySalesAmount = activeEnergyBaseAmount + offerMargin;
   const btvBase = activeEnergySalesAmount;
   const btvAmount = (btvBase * btvRate) / 100;
   const kdvBase =
@@ -31,6 +40,14 @@ const scenarioPeriod = (
   const kdvAmount = (kdvBase * kdvRate) / 100;
   return {
     ...period,
+    marketPriceMonth: marketPrice.month,
+    ptfUnitPrice: marketPrice.ptfUnitPrice,
+    yekdemUnitPrice: marketPrice.yekdemUnitPrice,
+    ptfPriceSource: marketPrice.ptfPriceSource,
+    yekdemPriceSource: marketPrice.yekdemPriceSource,
+    ptfAmount,
+    yekdemAmount,
+    activeEnergyBaseAmount,
     offerMargin,
     activeEnergySalesAmount,
     activeEnergyUnitPrice:
@@ -45,22 +62,40 @@ const scenarioPeriod = (
       period.contractPowerAmount +
       btvAmount +
       kdvAmount,
+    gesSelfConsumptionSavings:
+      period.gesSelfConsumptionMwh *
+      (period.gridConsumptionMwh > 0 ? activeEnergySalesAmount / period.gridConsumptionMwh : 0),
+    imbalanceAmount: (activeEnergyBaseAmount * imbalanceRate) / 100,
+    piuAmount: (activeEnergyBaseAmount * piuRate) / 100,
   };
 };
 
 export const calculateRealization = (
   scenario: Omit<RealizationScenario, 'resultSnapshot'>,
   monthlyLateFeeRate = 5.55,
+  monthlyMarketPrices: MonthlyMarketPrice[] = [],
+  holidays: string[] = [],
 ): RealizationResult => {
   const source = scenario.sourceOfferSnapshot.resultSnapshot;
   const state = scenario.sourceOfferSnapshot.stateSnapshot;
   const adjustedPeriods = source.periods.map((period) => {
     const override = scenario.periodOverrides.find((item) => item.periodId === period.id);
+    const marketPrice = resolveRealizationMarketPrice(
+      period,
+      monthlyMarketPrices,
+      scenario.asOfDate,
+      override,
+      state.ptfTlMwh,
+      state.yekdemTlMwh,
+    );
     return scenarioPeriod(
       period,
       override?.scenarioOfferRate ?? state.offerRate ?? 0,
       state.btvRate,
       state.kdvRate,
+      state.imbalanceRate,
+      state.piuRate,
+      marketPrice,
     );
   });
   const receivableLedger = allocatePaymentsToReceivables(
@@ -82,12 +117,14 @@ export const calculateRealization = (
     label: 'Gerçek müşteri tahsilatı',
     note: payment.note,
   }));
-  const supplierEvents = source.cashEvents.filter((event) => event.direction === 'out');
-  const actualCashflow = buildDailyCashflow(
-    [...supplierEvents, ...actualPaymentEvents],
-    state.creditRate,
-    state.valorRate,
+  const supplierEvents = buildSupplierEvents(
+    adjustedPeriods,
+    state,
+    source.totals.excessProductionPurchase,
+    holidays,
   );
+  const actualCashEvents = [...supplierEvents, ...actualPaymentEvents];
+  const actualCashflow = buildDailyCashflow(actualCashEvents, state.creditRate, state.valorRate);
   const actualCreditCost = actualCashflow.reduce((sum, day) => sum + day.creditInterest, 0);
   const actualValorIncome = actualCashflow.reduce((sum, day) => sum + day.valorInterest, 0);
   const lateFeeDocuments = accrueMonthlyLateFeeDocuments(
@@ -110,6 +147,14 @@ export const calculateRealization = (
   const periods: PeriodRealizationResult[] = adjustedPeriods.map((adjusted) => {
     const period = source.periods.find((candidate) => candidate.id === adjusted.id)!;
     const override = scenario.periodOverrides.find((item) => item.periodId === period.id);
+    const marketPrice = resolveRealizationMarketPrice(
+      period,
+      monthlyMarketPrices,
+      scenario.asOfDate,
+      override,
+      state.ptfTlMwh,
+      state.yekdemTlMwh,
+    );
     const offerRate = override?.scenarioOfferRate ?? state.offerRate ?? 0;
     const receivableInstallments = receivableLedger.installments.filter(
       (installment) => installment.invoiceId === period.id,
@@ -165,6 +210,12 @@ export const calculateRealization = (
       actualNetProfit,
       variance: actualNetProfit - plannedNetProfit,
       delinquency,
+      marketPriceMonth: marketPrice.month,
+      ptfUnitPrice: marketPrice.ptfUnitPrice,
+      yekdemUnitPrice: marketPrice.yekdemUnitPrice,
+      ptfPriceSource: marketPrice.ptfPriceSource,
+      yekdemPriceSource: marketPrice.yekdemPriceSource,
+      marketPriceWarnings: marketPrice.warnings,
     };
   });
   const totalLateFee = periods.reduce((sum, period) => sum + period.lateFee, 0);
@@ -176,6 +227,7 @@ export const calculateRealization = (
   const actualProfit = periods.reduce((sum, period) => sum + period.actualNetProfit, 0);
   return {
     periods,
+    billingPeriods: adjustedPeriods,
     receivableLedger,
     lateFeeDocuments,
     finalLateFeeDocuments: lateFeeDocuments.filter(
@@ -189,12 +241,18 @@ export const calculateRealization = (
     totalLateFee,
     totalLateFeeVat,
     endingOpenReceivable: receivableLedger.totalOutstandingPrincipal,
+    actualCashEvents,
+    marketPriceWarnings: [
+      ...new Set(periods.flatMap((period) => period.marketPriceWarnings ?? [])),
+    ],
   };
 };
 
 export const createRealizationScenario = (
   sourceOffer: RealizationScenario['sourceOfferSnapshot'],
   name = 'Gerçekleşen Durum',
+  monthlyMarketPrices: MonthlyMarketPrice[] = [],
+  holidays: string[] = [],
 ): RealizationScenario => {
   const now = new Date().toISOString();
   const base = {
@@ -210,7 +268,10 @@ export const createRealizationScenario = (
     createdAt: now,
     updatedAt: now,
   };
-  return { ...base, resultSnapshot: calculateRealization(base) };
+  return {
+    ...base,
+    resultSnapshot: calculateRealization(base, 5.55, monthlyMarketPrices, holidays),
+  };
 };
 
 export const newActualPaymentId = (): string => createId('actual_payment');

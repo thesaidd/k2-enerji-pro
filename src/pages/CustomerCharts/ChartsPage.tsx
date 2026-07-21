@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { useAppStore } from '../../app/store/useAppStore';
 import { sensitivitySeries } from '../../domain/profitability/calculation';
+import { marketPriceRecordsFromSnapshot } from '../../domain/market-prices/marketPrices';
 import { downloadText, toCsv } from '../../services/export/download';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -45,7 +46,14 @@ export function ChartsPage() {
   const chosen = offers.filter((offer) => selected.includes(offer.id));
   const data = (() => {
     if (kind === 'sensitivity' && chosen[0])
-      return sensitivitySeries(chosen[0].stateSnapshot, holidays, -5, 20, 1).map((row) => ({
+      return sensitivitySeries(
+        chosen[0].stateSnapshot,
+        holidays,
+        -5,
+        20,
+        1,
+        marketPriceRecordsFromSnapshot(chosen[0].resultSnapshot.marketPriceSnapshot),
+      ).map((row) => ({
         label: row.offerRate,
         'Net kâr': row.netProfit,
         'Müşteri faturası': row.customerInvoice,

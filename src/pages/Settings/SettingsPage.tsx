@@ -4,10 +4,13 @@ import {
   DatabaseBackup,
   FileUp,
   Moon,
+  Plus,
   RefreshCw,
+  Save,
   Settings,
   ShieldCheck,
   Sun,
+  Trash2,
 } from 'lucide-react';
 import { useAppStore } from '../../app/store/useAppStore';
 import { CALCULATION_POLICY_VERSION } from '../../config/calculationPolicy';
@@ -23,16 +26,86 @@ import {
 import { downloadText } from '../../services/export/download';
 import { NumberField } from '../../components/ui/NumberField';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import {
+  MONTHLY_MARKET_PRICE_STATUS_LABELS,
+  monthlyMarketPriceStatus,
+} from '../../domain/market-prices/marketPrices';
+import type { MonthlyMarketPrice } from '../../types';
 
 export function SettingsPage() {
   const settings = useAppStore((state) => state.settings);
   const updateSettings = useAppStore((state) => state.updateSettings);
+  const saveMonthlyMarketPrices = useAppStore((state) => state.saveMonthlyMarketPrices);
   const applyMigration = useAppStore((state) => state.applyMigration);
   const loadAll = useAppStore((state) => state.loadAll);
   const notify = useAppStore((state) => state.notify);
   const [lateRate, setLateRate] = useState(settings.lateFee.monthlyRate);
   const [holiday, setHoliday] = useState('');
   const [migration, setMigration] = useState<MigrationPreview | null>(null);
+  const [marketPrices, setMarketPrices] = useState<MonthlyMarketPrice[]>(() =>
+    structuredClone(settings.monthlyMarketPrices),
+  );
+  const marketPriceSignature = JSON.stringify(settings.monthlyMarketPrices);
+  const [loadedMarketPriceSignature, setLoadedMarketPriceSignature] = useState(marketPriceSignature);
+  if (loadedMarketPriceSignature !== marketPriceSignature) {
+    setLoadedMarketPriceSignature(marketPriceSignature);
+    setMarketPrices(structuredClone(settings.monthlyMarketPrices));
+  }
+  const addMarketPrice = () => {
+    if (marketPrices.some((record) => !record.month)) {
+      notify({ tone: 'warning', title: 'Önce boş ay satırını tamamlayın' });
+      return;
+    }
+    setMarketPrices([
+      ...marketPrices,
+      {
+        month: '',
+        forecastPtfTlMwh: null,
+        actualPtfTlMwh: null,
+        forecastYekdemTlMwh: null,
+        actualYekdemTlMwh: null,
+        sourceNote: '',
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+  };
+  const updateMarketPrice = (index: number, patch: Partial<MonthlyMarketPrice>) => {
+    if (
+      patch.month &&
+      marketPrices.some(
+        (record, candidateIndex) => candidateIndex !== index && record.month === patch.month,
+      )
+    ) {
+      notify({ tone: 'error', title: 'Aynı ay ikinci kez eklenemez', detail: patch.month });
+      return;
+    }
+    setMarketPrices(
+      marketPrices
+        .map((record, candidateIndex) =>
+          candidateIndex === index ? { ...record, ...patch } : record,
+        )
+        .sort((a, b) => {
+          if (!a.month) return 1;
+          if (!b.month) return -1;
+          return a.month.localeCompare(b.month);
+        }),
+    );
+  };
+  const saveMarketPrices = async () => {
+    const timestamp = new Date().toISOString();
+    await saveMonthlyMarketPrices(
+      marketPrices.map((record) => ({
+        ...record,
+        sourceNote: record.sourceNote?.trim(),
+        actualizedAt:
+          record.actualPtfTlMwh != null && record.actualYekdemTlMwh != null
+            ? (record.actualizedAt ?? timestamp)
+            : undefined,
+        updatedAt: timestamp,
+      })),
+    );
+  };
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -79,6 +152,148 @@ export function SettingsPage() {
         description="Tema, gecikme politikası, tatiller, yedekleme ve 2.17 veri taşıma işlemlerini yönetin."
       />
       <div className="settings-grid">
+        <section className="panel span-2">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">AYLIK PİYASA VERİLERİ</span>
+              <h2>PTF ve YEKDEM Tahmin/Gerçekleşen Değerleri</h2>
+            </div>
+            <button className="button secondary" onClick={addMarketPrice}>
+              <Plus size={16} /> Yeni ay ekle
+            </button>
+          </div>
+          <p className="muted">
+            PTF negatif olabilir. YEKDEM değerleri negatif olamaz. Yeni teklifler sözleşme aylarını
+            bu tablodan çözümler.
+          </p>
+          <div className="table-wrap wide-table market-price-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ay</th>
+                  <th>Tahmini PTF — TL/MWh</th>
+                  <th>Gerçekleşen PTF — TL/MWh</th>
+                  <th>Tahmini YEKDEM — TL/MWh</th>
+                  <th>Gerçekleşen YEKDEM — TL/MWh</th>
+                  <th>Kaynak/Not</th>
+                  <th>Durum</th>
+                  <th>İşlemler</th>
+                </tr>
+              </thead>
+              <tbody>
+                {marketPrices.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="muted">
+                      Henüz aylık piyasa verisi eklenmedi.
+                    </td>
+                  </tr>
+                ) : (
+                  marketPrices.map((record, index) => {
+                    const status = monthlyMarketPriceStatus(record);
+                    return (
+                      <tr key={`${record.month}-${index}`}>
+                        <td>
+                          <label className="field compact-field">
+                            <span className="sr-only">Ay</span>
+                            <input
+                              aria-label="Ay"
+                              type="month"
+                              value={record.month}
+                              onChange={(event) =>
+                                updateMarketPrice(index, { month: event.target.value })
+                              }
+                            />
+                          </label>
+                        </td>
+                        <td>
+                          <NullableMarketInput
+                            label="Tahmini PTF"
+                            value={record.forecastPtfTlMwh}
+                            onValue={(value) =>
+                              updateMarketPrice(index, { forecastPtfTlMwh: value })
+                            }
+                          />
+                        </td>
+                        <td>
+                          <NullableMarketInput
+                            label="Gerçekleşen PTF"
+                            value={record.actualPtfTlMwh}
+                            onValue={(value) => updateMarketPrice(index, { actualPtfTlMwh: value })}
+                          />
+                        </td>
+                        <td>
+                          <NullableMarketInput
+                            label="Tahmini YEKDEM"
+                            min={0}
+                            value={record.forecastYekdemTlMwh}
+                            onValue={(value) =>
+                              updateMarketPrice(index, { forecastYekdemTlMwh: value })
+                            }
+                          />
+                        </td>
+                        <td>
+                          <NullableMarketInput
+                            label="Gerçekleşen YEKDEM"
+                            min={0}
+                            value={record.actualYekdemTlMwh}
+                            onValue={(value) =>
+                              updateMarketPrice(index, { actualYekdemTlMwh: value })
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            aria-label="Kaynak veya not"
+                            value={record.sourceNote ?? ''}
+                            onChange={(event) =>
+                              updateMarketPrice(index, { sourceNote: event.target.value })
+                            }
+                          />
+                        </td>
+                        <td>
+                          <StatusBadge
+                            tone={
+                              status === 'actual_complete'
+                                ? 'positive'
+                                : status === 'forecast_missing'
+                                  ? 'warning'
+                                  : 'info'
+                            }
+                          >
+                            {MONTHLY_MARKET_PRICE_STATUS_LABELS[status]}
+                          </StatusBadge>
+                        </td>
+                        <td>
+                          <button
+                            className="icon-button danger"
+                            aria-label={`${record.month || 'Boş'} piyasa verisini sil`}
+                            onClick={() =>
+                              setMarketPrices(
+                                marketPrices.filter(
+                                  (_candidate, candidateIndex) => candidateIndex !== index,
+                                ),
+                              )
+                            }
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="form-actions">
+            <button
+              className="button primary"
+              onClick={() => void saveMarketPrices().catch(() => undefined)}
+            >
+              <Save size={16} /> Piyasa verilerini kaydet
+            </button>
+          </div>
+        </section>
         <section className="panel">
           <div className="panel-heading">
             <div>
@@ -312,5 +527,28 @@ export function SettingsPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+function NullableMarketInput({
+  label,
+  value,
+  min,
+  onValue,
+}: {
+  label: string;
+  value: number | null;
+  min?: number;
+  onValue: (value: number | null) => void;
+}) {
+  return (
+    <input
+      aria-label={label}
+      type="number"
+      step="0.001"
+      min={min}
+      value={value ?? ''}
+      onChange={(event) => onValue(event.target.value === '' ? null : Number(event.target.value))}
+    />
   );
 }

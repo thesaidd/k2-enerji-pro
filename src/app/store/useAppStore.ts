@@ -15,6 +15,7 @@ import type {
   OfferState,
   PlannedOffer,
   RealizationScenario,
+  MonthlyMarketPrice,
 } from '../../types';
 import type { MigrationPreview } from '../../services/migration/migrate217';
 import { mergeMigratedSettings } from '../../services/migration/migrate217';
@@ -54,6 +55,7 @@ interface AppStore {
   duplicateOffer: (id: string) => void;
   saveScenario: (scenario: RealizationScenario) => Promise<void>;
   updateSettings: (patch: Partial<AppSettings>) => Promise<void>;
+  saveMonthlyMarketPrices: (prices: MonthlyMarketPrice[]) => Promise<void>;
   applyMigration: (preview: MigrationPreview) => Promise<void>;
   notify: (message: Omit<ToastMessage, 'id'>) => void;
   dismissToast: (id: string) => void;
@@ -141,8 +143,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ saveStatus: 'saving' });
     const state = structuredClone(get().draft);
     const referenceState = { ...state, offerRate: 0 };
-    const result = calculateOffer(referenceState, get().settings.holidays);
-    if (!result.valid) {
+    const result = calculateOffer(
+      referenceState,
+      get().settings.holidays,
+      get().settings.monthlyMarketPrices,
+    );
+    const onlyMarketPricesMissing =
+      result.errors[0] === 'Aşağıdaki dönemlerin piyasa tahmini eksik:';
+    if (!result.valid && !onlyMarketPricesMissing) {
       set({ saveStatus: 'error' });
       throw new Error(result.errors.join(' '));
     }
@@ -183,7 +191,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ saveStatus: 'error' });
       throw new Error('Nihai teklif için teklif oranı zorunludur.');
     }
-    const result = calculateOffer(state, get().settings.holidays);
+    const result = calculateOffer(
+      state,
+      get().settings.holidays,
+      get().settings.monthlyMarketPrices,
+    );
     if (!result.valid) {
       set({ saveStatus: 'error' });
       throw new Error(result.errors.join(' '));
@@ -256,7 +268,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     get().notify({
       tone: 'info',
       title: 'Teklif kopyası düzenlemeye açıldı',
-      detail: 'Yeni kayıt oluşturulana kadar kaynak teklif değişmez.',
+      detail:
+        'Kaynak teklif değişmez; yeni kayıt güncel aylık piyasa tahminleriyle hesaplanır.',
     });
   },
 
@@ -264,7 +277,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set({ saveStatus: 'saving' });
     const updated = {
       ...structuredClone(scenario),
-      resultSnapshot: calculateRealization(scenario, get().settings.lateFee.monthlyRate),
+      resultSnapshot: calculateRealization(
+        scenario,
+        get().settings.lateFee.monthlyRate,
+        get().settings.monthlyMarketPrices,
+        get().settings.holidays,
+      ),
       updatedAt: now(),
     };
     await RealizationScenarioRepository.save(updated);
@@ -286,9 +304,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
       ...patch,
       lateFee: { ...get().settings.lateFee, ...(patch.lateFee ?? {}) },
     };
-    await SettingsRepository.save(settings);
-    set({ settings });
+    const saved = await SettingsRepository.save(settings);
+    set({ settings: saved });
     get().notify({ tone: 'success', title: 'Ayarlar kaydedildi' });
+  },
+
+  saveMonthlyMarketPrices: async (prices) => {
+    set({ saveStatus: 'saving' });
+    get().notify({ tone: 'info', title: 'Kaydediliyor…' });
+    try {
+      const settings = await SettingsRepository.save({
+        ...get().settings,
+        monthlyMarketPrices: prices,
+      });
+      const timestamp = now();
+      set({ settings, saveStatus: 'saved', lastSavedAt: timestamp });
+      get().notify({ tone: 'success', title: 'Piyasa verileri başarıyla kaydedildi' });
+    } catch (error) {
+      set({ saveStatus: 'error' });
+      get().notify({
+        tone: 'error',
+        title: 'Hata oluştu',
+        detail: error instanceof Error ? error.message : 'Piyasa verileri kaydedilemedi.',
+      });
+      throw error;
+    }
   },
 
   applyMigration: async (preview) => {

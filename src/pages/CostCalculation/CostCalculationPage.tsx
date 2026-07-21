@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../app/store/useAppStore';
 import { applyTariffDefaults, TARIFFS } from '../../config/tariffs';
 import { calculateOffer, sensitivitySeries } from '../../domain/profitability/calculation';
+import { listContractMonths } from '../../domain/market-prices/marketPrices';
 import { PaymentPlanEditor } from '../../components/payment-plan/PaymentPlanEditor';
 import { SensitivityChart } from '../../components/charts/SensitivityChart';
 import { MetricCard } from '../../components/ui/MetricCard';
@@ -46,13 +47,21 @@ export function CostCalculationPage() {
     [draft, step],
   );
   const result = useMemo(
-    () => calculateOffer(effectiveState, settings.holidays),
-    [effectiveState, settings.holidays],
+    () => calculateOffer(effectiveState, settings.holidays, settings.monthlyMarketPrices),
+    [effectiveState, settings.holidays, settings.monthlyMarketPrices],
   );
   const sensitivity = useMemo(
-    () => (step === 5 ? sensitivitySeries(draft, settings.holidays, -5, 20, 1) : []),
-    [draft, settings.holidays, step],
+    () =>
+      step === 5
+        ? sensitivitySeries(draft, settings.holidays, -5, 20, 1, settings.monthlyMarketPrices)
+        : [],
+    [draft, settings.holidays, settings.monthlyMarketPrices, step],
   );
+  const marketMonths = useMemo(
+    () => listContractMonths(draft.usageStart, draft.usageEnd),
+    [draft.usageEnd, draft.usageStart],
+  );
+  const onlyMarketPricesMissing = result.errors[0] === 'Aşağıdaki dönemlerin piyasa tahmini eksik:';
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
       if (saveStatus === 'dirty') {
@@ -71,7 +80,7 @@ export function CostCalculationPage() {
       notify({ tone: 'error', title: 'Tüketim bilgilerini kontrol edin' });
       return;
     }
-    if (step === 3 && !result.valid) {
+    if (step === 3 && !result.valid && !onlyMarketPricesMissing) {
       notify({
         tone: 'error',
         title: 'Ödeme planı geçerli değil',
@@ -276,22 +285,60 @@ export function CostCalculationPage() {
               >
                 Varsayılana dön
               </button>
-              <NumberField
-                label="PTF"
-                unit="TL/MWh"
-                min={0}
-                step="0.001"
-                value={draft.ptfTlMwh}
-                onValue={(value) => update('ptfTlMwh', value)}
-              />
-              <NumberField
-                label="YEKDEM"
-                unit="TL/MWh"
-                min={0}
-                step="0.001"
-                value={draft.yekdemTlMwh}
-                onValue={(value) => update('yekdemTlMwh', value)}
-              />
+              <div className="notice info span-3">
+                <strong>Bu teklif aylık piyasa tahminlerinden hesaplanacaktır.</strong> PTF ve
+                YEKDEM değerleri Ayarlar ekranındaki sözleşme aylarıyla eşleştirilir.
+              </div>
+              <div className="table-wrap span-3">
+                <table aria-label="Teklif aylık piyasa tahminleri">
+                  <thead>
+                    <tr>
+                      <th>Dönem</th>
+                      <th>Tahmini PTF</th>
+                      <th>Tahmini YEKDEM</th>
+                      <th>PTF + YEKDEM</th>
+                      <th>Veri durumu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {marketMonths.map((month) => {
+                      const record = settings.monthlyMarketPrices.find(
+                        (item) => item.month === month,
+                      );
+                      const ready =
+                        record?.forecastPtfTlMwh != null && record.forecastYekdemTlMwh != null;
+                      return (
+                        <tr key={month}>
+                          <td>
+                            <strong>{month}</strong>
+                          </td>
+                          <td>
+                            {record?.forecastPtfTlMwh == null
+                              ? 'Eksik'
+                              : `${formatNumber(record.forecastPtfTlMwh, 3)} TL/MWh`}
+                          </td>
+                          <td>
+                            {record?.forecastYekdemTlMwh == null
+                              ? 'Eksik'
+                              : `${formatNumber(record.forecastYekdemTlMwh, 3)} TL/MWh`}
+                          </td>
+                          <td>
+                            {ready
+                              ? `${formatNumber(
+                                  record.forecastPtfTlMwh! + record.forecastYekdemTlMwh!,
+                                  3,
+                                )} TL/MWh`
+                              : '—'}
+                          </td>
+                          <td className={ready ? 'positive-text' : 'negative-text'}>
+                            {ready ? 'Tahmin hazır' : 'Tahmin eksik'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
               <NumberField
                 label="Dağıtım"
                 unit="TL/MWh"
