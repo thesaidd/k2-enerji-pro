@@ -1,9 +1,14 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { createId } from '../../config/paymentPlans';
 import { buildDailyCashflow } from '../financing/financing';
-import { allocateActualPayments, calculateInvoiceDelinquency } from '../late-fee/lateFee';
+import {
+  accrueMonthlyLateFeeDocuments,
+  buildRealizationInvoiceSummaries,
+} from '../late-fee/accrual';
+import { calculateLedgerInvoiceDelinquency } from '../late-fee/lateFee';
 import { calculateMonthlyProfit } from '../profitability/monthlyProfit';
+import { allocatePaymentsToReceivables, buildReceivableInstallments } from '../receivables/ledger';
 import type {
+  ActualPayment,
   BillingPeriod,
   CashEvent,
   PeriodRealizationResult,
@@ -49,20 +54,24 @@ export const calculateRealization = (
 ): RealizationResult => {
   const source = scenario.sourceOfferSnapshot.resultSnapshot;
   const state = scenario.sourceOfferSnapshot.stateSnapshot;
-  const dueByPeriod = new Map<string, string>();
-  for (const payment of source.plannedPayments) {
-    if (!payment.periodId) continue;
-    const current = dueByPeriod.get(payment.periodId);
-    if (!current || payment.transactionDate < current)
-      dueByPeriod.set(payment.periodId, payment.transactionDate);
-  }
-  const invoiceList = source.periods.map((period) => ({
-    id: period.id,
-    dueDate: dueByPeriod.get(period.id) ?? period.invoiceDate,
-    amount: period.grossInvoice,
-  }));
-  const allocation = allocateActualPayments(invoiceList, scenario.actualPayments);
-  const actualPaymentEvents: CashEvent[] = scenario.actualPayments.map((payment) => ({
+  const adjustedPeriods = source.periods.map((period) => {
+    const override = scenario.periodOverrides.find((item) => item.periodId === period.id);
+    return scenarioPeriod(
+      period,
+      override?.scenarioOfferRate ?? state.offerRate ?? 0,
+      state.btvRate,
+      state.kdvRate,
+    );
+  });
+  const receivableLedger = allocatePaymentsToReceivables(
+    buildReceivableInstallments(adjustedPeriods, source.plannedPayments),
+    scenario.actualPayments,
+    scenario.asOfDate,
+  );
+  const effectivePayments = scenario.actualPayments.filter(
+    (payment) => payment.date <= scenario.asOfDate && payment.amount > 0,
+  );
+  const actualPaymentEvents: CashEvent[] = effectivePayments.map((payment) => ({
     id: payment.id,
     date: payment.date,
     type: 'customer_payment',
@@ -81,23 +90,51 @@ export const calculateRealization = (
   );
   const actualCreditCost = actualCashflow.reduce((sum, day) => sum + day.creditInterest, 0);
   const actualValorIncome = actualCashflow.reduce((sum, day) => sum + day.valorInterest, 0);
+  const lateFeeDocuments = accrueMonthlyLateFeeDocuments(
+    adjustedPeriods,
+    receivableLedger,
+    scenario.asOfDate,
+    monthlyLateFeeRate,
+    {
+      sourceCustomerId: scenario.sourceCustomerId,
+      sourceOfferId: scenario.sourceOfferId,
+      sourceScenarioId: scenario.id,
+    },
+  );
+  const invoiceSummaries = buildRealizationInvoiceSummaries(adjustedPeriods, lateFeeDocuments);
+  const paymentsById = new Map(scenario.actualPayments.map((payment) => [payment.id, payment]));
   const plannedPeriodProfitBase = source.periods.reduce(
     (sum, period) => sum + period.offerMargin,
     0,
   );
-  const periods: PeriodRealizationResult[] = source.periods.map((period) => {
+  const periods: PeriodRealizationResult[] = adjustedPeriods.map((adjusted) => {
+    const period = source.periods.find((candidate) => candidate.id === adjusted.id)!;
     const override = scenario.periodOverrides.find((item) => item.periodId === period.id);
     const offerRate = override?.scenarioOfferRate ?? state.offerRate ?? 0;
-    const adjusted = scenarioPeriod(period, offerRate, state.btvRate, state.kdvRate);
-    const payments = allocation.byInvoice.get(period.id) ?? [];
-    const dueDate = dueByPeriod.get(period.id) ?? period.invoiceDate;
-    const calculationDate = override?.calculationDate ?? scenario.asOfDate;
-    const delinquency = calculateInvoiceDelinquency(
+    const receivableInstallments = receivableLedger.installments.filter(
+      (installment) => installment.invoiceId === period.id,
+    );
+    const delinquency = calculateLedgerInvoiceDelinquency(
       adjusted,
-      dueDate,
-      payments,
-      calculationDate,
+      receivableLedger,
+      scenario.asOfDate,
       monthlyLateFeeRate,
+    );
+    const paymentGroups = new Map<string, ActualPayment>();
+    for (const allocation of receivableLedger.allocations.filter(
+      (item) => item.invoiceId === period.id,
+    )) {
+      const sourcePayment = paymentsById.get(allocation.paymentId)!;
+      const current = paymentGroups.get(allocation.paymentId);
+      paymentGroups.set(allocation.paymentId, {
+        ...sourcePayment,
+        invoiceId: period.id,
+        receivableInstallmentId: current ? undefined : allocation.receivableInstallmentId,
+        amount: (current?.amount ?? 0) + allocation.amount,
+      });
+    }
+    const payments = [...paymentGroups.values()].sort(
+      (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
     );
     const profitShare =
       plannedPeriodProfitBase > 0 ? period.offerMargin / plannedPeriodProfitBase : period.share;
@@ -110,17 +147,15 @@ export const calculateRealization = (
       actualCreditCost * financingShare +
       actualValorIncome * financingShare +
       delinquency.lateFee;
-    const lastPaymentDate = payments.at(-1)?.date ?? calculationDate;
     return {
       periodId: period.id,
       plannedInvoice: period.grossInvoice,
-      plannedDueDate: dueDate,
+      plannedDueDate: receivableInstallments[0]?.dueDate ?? period.invoiceDate,
+      receivableInstallments,
+      invoiceSummary: invoiceSummaries.find((summary) => summary.periodId === period.id)!,
       actualPayments: payments,
       outstandingPrincipal: delinquency.outstandingPrincipal,
-      delayDays: Math.max(
-        0,
-        differenceInCalendarDays(parseISO(lastPaymentDate), parseISO(dueDate)),
-      ),
+      delayDays: delinquency.delayDays,
       lateFee: delinquency.lateFee,
       lateFeeVat: delinquency.lateFeeVat,
       actualCreditCost: actualCreditCost * financingShare,
@@ -134,10 +169,6 @@ export const calculateRealization = (
   });
   const totalLateFee = periods.reduce((sum, period) => sum + period.lateFee, 0);
   const totalLateFeeVat = periods.reduce((sum, period) => sum + period.lateFeeVat, 0);
-  const adjustedPeriods = source.periods.map((period) => {
-    const result = periods.find((item) => item.periodId === period.id)!;
-    return scenarioPeriod(period, result.scenarioOfferRate, state.btvRate, state.kdvRate);
-  });
   const lateFeeMonth = scenario.asOfDate.slice(0, 7);
   const monthlyProfit = calculateMonthlyProfit(adjustedPeriods, actualCashflow, 0, {
     [lateFeeMonth]: totalLateFee,
@@ -145,6 +176,11 @@ export const calculateRealization = (
   const actualProfit = periods.reduce((sum, period) => sum + period.actualNetProfit, 0);
   return {
     periods,
+    receivableLedger,
+    lateFeeDocuments,
+    finalLateFeeDocuments: lateFeeDocuments.filter(
+      (document) => document.kind === 'final_late_fee_invoice',
+    ),
     actualCashflow,
     monthlyProfit,
     plannedProfit: source.totals.netProfit,
@@ -152,7 +188,7 @@ export const calculateRealization = (
     variance: actualProfit - source.totals.netProfit,
     totalLateFee,
     totalLateFeeVat,
-    endingOpenReceivable: periods.reduce((sum, period) => sum + period.outstandingPrincipal, 0),
+    endingOpenReceivable: receivableLedger.totalOutstandingPrincipal,
   };
 };
 

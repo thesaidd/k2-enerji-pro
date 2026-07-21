@@ -221,7 +221,7 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
     setScenario({ ...scenario, ...patch, resultSnapshot: result });
   const addPayment = (event: FormEvent) => {
     event.preventDefault();
-    if (payment.amount <= 0) return;
+    if (payment.amount <= 0 || !payment.date || payment.date > scenario.asOfDate) return;
     updateScenario({
       actualPayments: [...scenario.actualPayments, { ...payment, id: newActualPaymentId() }],
     });
@@ -336,17 +336,48 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
           <label className="field">
             <span>Fatura / dönem</span>
             <select
-              value={payment.invoiceId ?? ''}
-              onChange={(event) =>
-                setPayment({ ...payment, invoiceId: event.target.value || undefined })
+              value={
+                payment.receivableInstallmentId
+                  ? `installment:${payment.receivableInstallmentId}`
+                  : payment.invoiceId
+                    ? `invoice:${payment.invoiceId}`
+                    : ''
               }
+              onChange={(event) => {
+                const [kind, id] = event.target.value.split(':');
+                if (kind === 'installment') {
+                  const installment = result.receivableLedger.installments.find(
+                    (item) => item.id === id,
+                  );
+                  setPayment({
+                    ...payment,
+                    invoiceId: installment?.invoiceId,
+                    receivableInstallmentId: installment?.id,
+                  });
+                } else
+                  setPayment({
+                    ...payment,
+                    invoiceId: kind === 'invoice' ? id : undefined,
+                    receivableInstallmentId: undefined,
+                  });
+              }}
             >
               <option value="">Genel · en eski açık fatura</option>
-              {scenario.sourceOfferSnapshot.resultSnapshot.periods.map((period) => (
-                <option key={period.id} value={period.id}>
-                  {period.index}. dönem · {formatDate(period.invoiceDate)}
-                </option>
-              ))}
+              <optgroup label="Fatura / dönem">
+                {scenario.sourceOfferSnapshot.resultSnapshot.periods.map((period) => (
+                  <option key={period.id} value={`invoice:${period.id}`}>
+                    {period.index}. dönem · {formatDate(period.invoiceDate)}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Alacak / vade dilimi">
+                {result.receivableLedger.installments.map((installment) => (
+                  <option key={installment.id} value={`installment:${installment.id}`}>
+                    {installment.periodIndex}. dönem · {formatMoney(installment.principalAmount)} ·{' '}
+                    {formatDate(installment.dueDate)}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </label>
           <label className="field">
@@ -354,8 +385,10 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
             <input
               type="date"
               value={payment.date}
+              max={scenario.asOfDate}
               onChange={(event) => setPayment({ ...payment, date: event.target.value })}
             />
+            <small>İleri tarihli tahsilatlar bu senaryo sonucuna dahil edilmez.</small>
           </label>
           <NumberField
             label="Tahsilat tutarı"
@@ -393,7 +426,11 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
                   <strong>{formatMoney(item.amount)}</strong>
                   <small>
                     {formatDate(item.date)} ·{' '}
-                    {item.invoiceId ? `${item.invoiceId.replace('period_', '')}. dönem` : 'Genel'}
+                    {item.receivableInstallmentId
+                      ? 'Vade dilimine atanmış'
+                      : item.invoiceId
+                        ? `${item.invoiceId.replace('period_', '')}. dönem`
+                        : 'Genel'}
                   </small>
                 </div>
                 <button
@@ -471,8 +508,20 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
                     <strong>{period.periodId.replace('period_', '')}. dönem</strong>
                   </td>
                   <td>
-                    {formatMoney(period.plannedInvoice)}
-                    <small>{formatDate(period.plannedDueDate)}</small>
+                    <strong>{formatMoney(period.invoiceSummary.totalPayable)}</strong>
+                    <small>Enerji faturası {formatMoney(period.plannedInvoice)}</small>
+                    {period.receivableInstallments.map((installment) => (
+                      <small key={installment.id}>
+                        Vade {formatDate(installment.dueDate)} ·{' '}
+                        {formatMoney(installment.principalAmount)} · açık{' '}
+                        {formatMoney(installment.outstandingPrincipal)}
+                      </small>
+                    ))}
+                    {period.invoiceSummary.carryoverLines.map((line) => (
+                      <small key={line.id}>
+                        {line.label}: {formatMoney(line.amount)}
+                      </small>
+                    ))}
                   </td>
                   <td>
                     {formatMoney(period.actualPayments.reduce((sum, item) => sum + item.amount, 0))}
@@ -500,6 +549,54 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
           </table>
         </div>
       </section>
+      {result.finalLateFeeDocuments.length > 0 && (
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">NİHAİ BELGE</span>
+              <h2>Nihai Gecikme Bedeli Faturası</h2>
+            </div>
+            <StatusBadge tone="warning">{`${result.finalLateFeeDocuments.length} belge`}</StatusBadge>
+          </div>
+          <div className="table-wrap wide-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kaynak</th>
+                  <th>Hesaplama dönemi</th>
+                  <th>Açık ana para</th>
+                  <th>Gecikme bedeli</th>
+                  <th>Kaynak KDV</th>
+                  <th>Gecikme KDV’si</th>
+                  <th>Toplam</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.finalLateFeeDocuments.map((document) => (
+                  <tr key={document.id}>
+                    <td>
+                      <strong>{document.sourceInvoiceId}</strong>
+                      <small>{document.sourceReceivableInstallmentId}</small>
+                    </td>
+                    <td>
+                      {formatDate(document.calculationStartDate)} –{' '}
+                      {formatDate(document.calculationEndDate)}
+                      <small>Belge {formatDate(document.issueDate)}</small>
+                    </td>
+                    <td>{formatMoney(document.openPrincipal)}</td>
+                    <td>{formatMoney(document.lateFee)}</td>
+                    <td>%{formatNumber(document.sourceVatRate * 100)}</td>
+                    <td>{formatMoney(document.lateFeeVat)}</td>
+                    <td>
+                      <strong>{formatMoney(document.totalAmount)}</strong>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

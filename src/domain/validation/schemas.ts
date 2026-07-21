@@ -155,6 +155,7 @@ export const offerStateSchema = z
 export const actualPaymentSchema = z.object({
   id: z.string().min(1),
   invoiceId: z.string().optional(),
+  receivableInstallmentId: z.string().optional(),
   date: z.iso.date(),
   amount: nonNegative,
   channel: z.enum([
