@@ -64,17 +64,17 @@ export const defaultComparisonSettings = (state: OfferState): ComparisonSettings
 export const referenceActiveUnitPrice = (
   state: OfferState,
   settings: ComparisonSettings,
+  periodPrice?: { ptfUnitPrice?: number; yekdemUnitPrice?: number },
 ): number => {
-  if (settings.model === 'skt_kbk')
-    return (state.ptfTlMwh + state.yekdemTlMwh) * settings.sktMultiplier;
+  const ptf = periodPrice?.ptfUnitPrice ?? state.ptfTlMwh;
+  const yekdem = periodPrice?.yekdemUnitPrice ?? state.yekdemTlMwh;
+  if (settings.model === 'skt_kbk') return (ptf + yekdem) * settings.sktMultiplier;
   if (settings.model === 'national_fixed' || settings.model === 'manual_active')
     return settings.referenceActivePriceTlMwh;
   if (settings.model === 'fixed_discount_tl_mwh')
     return Math.max(0, settings.referenceActivePriceTlMwh - settings.fixedDiscountTlMwh);
   if (settings.model === 'usd_mwh')
-    return (
-      settings.usdPriceMwh * settings.usdTry + (settings.usdIncludesYekdem ? 0 : state.yekdemTlMwh)
-    );
+    return settings.usdPriceMwh * settings.usdTry + (settings.usdIncludesYekdem ? 0 : yekdem);
   return settings.referenceActivePriceTlMwh;
 };
 
@@ -85,7 +85,7 @@ export const calculateReferenceInvoice = (
 ): number => {
   const tariff = getTariff(state.customerType);
   return result.periods.reduce((total, period) => {
-    let activeUnit = referenceActiveUnitPrice(state, settings);
+    let activeUnit = referenceActiveUnitPrice(state, settings, period);
     if (settings.model === 'national_tiered') {
       const low = Math.min(
         period.gridConsumptionMwh,

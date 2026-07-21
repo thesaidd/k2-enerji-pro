@@ -11,6 +11,8 @@ import {
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAppStore } from '../../app/store/useAppStore';
 import { createRealizationScenario } from '../../domain/realization/realization';
+import { paymentCalendarUrl } from '../../domain/payment-calendar/paymentCalendar';
+import { marketPriceSourceLabel } from '../../domain/market-prices/marketPrices';
 import { downloadText, toCsv, toIcs } from '../../services/export/download';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MetricCard } from '../../components/ui/MetricCard';
@@ -27,6 +29,7 @@ export function OfferDetailPage() {
   );
   const duplicateOffer = useAppStore((state) => state.duplicateOffer);
   const saveScenario = useAppStore((state) => state.saveScenario);
+  const settings = useAppStore((state) => state.settings);
   if (!offer)
     return (
       <EmptyState
@@ -66,7 +69,12 @@ export function OfferDetailPage() {
       'text/csv;charset=utf-8',
     );
   const createScenario = async () => {
-    const scenario = createRealizationScenario(offer);
+    const scenario = createRealizationScenario(
+      offer,
+      'Gerçekleşen Durum',
+      settings.monthlyMarketPrices,
+      settings.holidays,
+    );
     await saveScenario(scenario);
     navigate(`/realization/${scenario.id}`);
   };
@@ -93,6 +101,9 @@ export function OfferDetailPage() {
             <button className="button secondary" onClick={() => void createScenario()}>
               <GitBranch size={16} /> Gerçekleşme oluştur
             </button>
+            <Link className="button secondary" to={paymentCalendarUrl('planned_offer', offer.id)}>
+              <CalendarDays size={16} /> Ödeme / Kullanım Takvimini Aç
+            </Link>
           </div>
         }
       />
@@ -139,6 +150,8 @@ export function OfferDetailPage() {
                 <tr>
                   <th>Dönem</th>
                   <th>Şebeke</th>
+                  <th>PTF / kaynak</th>
+                  <th>YEKDEM / kaynak</th>
                   <th>Aktif enerji</th>
                   <th>BTV</th>
                   <th>Dağıtım</th>
@@ -156,6 +169,15 @@ export function OfferDetailPage() {
                       </small>
                     </td>
                     <td>{formatNumber(period.gridConsumptionMwh)} MWh</td>
+                    <td>
+                      {formatNumber(period.ptfUnitPrice ?? offer.stateSnapshot.ptfTlMwh, 3)} TL/MWh
+                      <small>{marketPriceSourceLabel(period.ptfPriceSource)}</small>
+                    </td>
+                    <td>
+                      {formatNumber(period.yekdemUnitPrice ?? offer.stateSnapshot.yekdemTlMwh, 3)}{' '}
+                      TL/MWh
+                      <small>{marketPriceSourceLabel(period.yekdemPriceSource)}</small>
+                    </td>
                     <td>{formatMoney(period.activeEnergySalesAmount)}</td>
                     <td>{formatMoney(period.btvAmount)}</td>
                     <td>{formatMoney(period.distributionAmount)}</td>
@@ -199,6 +221,38 @@ export function OfferDetailPage() {
             </div>
           </dl>
         </aside>
+      </section>
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">PİYASA VERİSİ SNAPSHOT’I</span>
+            <h2>Kaydedildiği tarihte kullanılan piyasa verileri</h2>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ay</th>
+                <th>PTF</th>
+                <th>PTF kaynağı</th>
+                <th>YEKDEM</th>
+                <th>YEKDEM kaynağı</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(result.marketPriceSnapshot ?? []).map((price) => (
+                <tr key={price.month}>
+                  <td>{price.month}</td>
+                  <td>{formatNumber(price.ptfUnitPrice, 3)} TL/MWh</td>
+                  <td>{marketPriceSourceLabel(price.ptfPriceSource)}</td>
+                  <td>{formatNumber(price.yekdemUnitPrice, 3)} TL/MWh</td>
+                  <td>{marketPriceSourceLabel(price.yekdemPriceSource)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
       <section className="panel no-print">
         <div className="panel-heading">

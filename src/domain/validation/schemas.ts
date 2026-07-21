@@ -2,6 +2,49 @@ import { z } from 'zod';
 
 const nonNegative = z.number().finite().nonnegative();
 const rate = nonNegative.max(100);
+const nullableFinite = z.number().finite().nullable();
+const nullableNonNegative = nonNegative.nullable();
+
+export const monthlyMarketPriceSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Ay YYYY-MM biçiminde olmalıdır.'),
+  forecastPtfTlMwh: nullableFinite,
+  actualPtfTlMwh: nullableFinite,
+  forecastYekdemTlMwh: nullableNonNegative,
+  actualYekdemTlMwh: nullableNonNegative,
+  sourceNote: z.string().optional(),
+  actualizedAt: z.string().optional(),
+  updatedAt: z.string().min(1),
+});
+
+export const monthlyMarketPricesSchema = z
+  .array(monthlyMarketPriceSchema)
+  .superRefine((records, context) => {
+    const seen = new Set<string>();
+    records.forEach((record, index) => {
+      if (seen.has(record.month))
+        context.addIssue({
+          code: 'custom',
+          path: [index, 'month'],
+          message: `${record.month} ayı yalnız bir kez eklenebilir.`,
+        });
+      seen.add(record.month);
+    });
+  });
+
+export const appSettingsSchema = z.object({
+  id: z.literal('app'),
+  theme: z.enum(['light', 'dark', 'system']),
+  holidays: z.array(z.iso.date()),
+  lateFee: z.object({
+    monthlyRate: nonNegative,
+    dayBasis: z.literal(360),
+    useInvoiceVatRate: z.literal(true),
+    compound: z.literal(false),
+    includeWeekendsAndHolidays: z.literal(true),
+  }),
+  policyVersion: z.string().min(1),
+  monthlyMarketPrices: monthlyMarketPricesSchema,
+});
 
 export const gesSettingsSchema = z
   .object({

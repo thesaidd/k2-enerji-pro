@@ -13,7 +13,14 @@ import {
   defaultComparisonSettings,
 } from '../comparison/tariffComparison';
 import { offerStateSchema } from '../validation/schemas';
-import type { CalculationResult, CalculationTotals, OfferState } from '../../types';
+import { listContractMonths, resolveForecastMarketPrices } from '../market-prices/marketPrices';
+import type {
+  CalculationResult,
+  CalculationTotals,
+  MarketPriceSnapshot,
+  MonthlyMarketPrice,
+  OfferState,
+} from '../../types';
 
 const clone = <T>(value: T): T => structuredClone(value);
 const sum = <T>(items: T[], picker: (item: T) => number): number =>
@@ -39,8 +46,12 @@ interface CoreResult {
   >;
 }
 
-const calculateCore = (state: OfferState, holidays: string[] = []): CoreResult => {
-  const invoices = calculateInvoices(state);
+const calculateCore = (
+  state: OfferState,
+  holidays: string[] = [],
+  marketPrices?: MarketPriceSnapshot[],
+): CoreResult => {
+  const invoices = calculateInvoices(state, marketPrices);
   const settlement = calculatePlannedPayments(
     invoices.periods,
     state.paymentPlan,
@@ -115,16 +126,23 @@ const calculateCore = (state: OfferState, holidays: string[] = []): CoreResult =
   };
 };
 
-const findBreakevenRate = (state: OfferState, holidays: string[]): number => {
+const findBreakevenRate = (
+  state: OfferState,
+  holidays: string[],
+  marketPrices?: MarketPriceSnapshot[],
+): number => {
   let low = -99;
   let high = 100;
-  let lowProfit = calculateCore({ ...clone(state), offerRate: low }, holidays).totals.netProfit;
-  let highProfit = calculateCore({ ...clone(state), offerRate: high }, holidays).totals.netProfit;
+  let lowProfit = calculateCore({ ...clone(state), offerRate: low }, holidays, marketPrices).totals
+    .netProfit;
+  let highProfit = calculateCore({ ...clone(state), offerRate: high }, holidays, marketPrices)
+    .totals.netProfit;
   if (lowProfit >= 0) return low;
   if (highProfit <= 0) return high;
   for (let iteration = 0; iteration < 45; iteration += 1) {
     const middle = (low + high) / 2;
-    const profit = calculateCore({ ...clone(state), offerRate: middle }, holidays).totals.netProfit;
+    const profit = calculateCore({ ...clone(state), offerRate: middle }, holidays, marketPrices)
+      .totals.netProfit;
     if (profit >= 0) {
       high = middle;
       highProfit = profit;
@@ -138,7 +156,11 @@ const findBreakevenRate = (state: OfferState, holidays: string[]): number => {
   return (low + high) / 2;
 };
 
-const invalidResult = (state: OfferState, errors: string[]): CalculationResult => ({
+const invalidResult = (
+  state: OfferState,
+  errors: string[],
+  marketPriceSnapshot: MarketPriceSnapshot[] = [],
+): CalculationResult => ({
   valid: false,
   errors,
   warnings: [],
@@ -150,6 +172,7 @@ const invalidResult = (state: OfferState, errors: string[]): CalculationResult =
   cashEvents: [],
   plannedCashflow: [],
   monthlyProfit: [],
+  marketPriceSnapshot,
   totals: {
     grossConsumptionMwh: 0,
     gesSelfConsumptionMwh: 0,
@@ -186,6 +209,7 @@ const invalidResult = (state: OfferState, errors: string[]): CalculationResult =
 export const calculateOffer = (
   input: Partial<OfferState>,
   holidays: string[] = [],
+  monthlyMarketPrices?: MonthlyMarketPrice[],
 ): CalculationResult => {
   const state = normalizeOfferState(input);
   const parsed = offerStateSchema.safeParse(state);
@@ -194,9 +218,21 @@ export const calculateOffer = (
       state,
       parsed.error.issues.map((issue) => issue.message),
     );
-  const core = calculateCore(state, holidays);
-  const breakevenOfferRate = findBreakevenRate(state, holidays);
-  const breakevenUnitPrice = (state.ptfTlMwh + state.yekdemTlMwh) * (1 + breakevenOfferRate / 100);
+  const marketPriceResolution = resolveForecastMarketPrices(
+    listContractMonths(state.usageStart, state.usageEnd),
+    monthlyMarketPrices,
+    state.ptfTlMwh,
+    state.yekdemTlMwh,
+  );
+  if (marketPriceResolution.errors.length > 0)
+    return invalidResult(state, marketPriceResolution.errors, marketPriceResolution.values);
+  const core = calculateCore(state, holidays, marketPriceResolution.values);
+  const breakevenOfferRate = findBreakevenRate(state, holidays, marketPriceResolution.values);
+  const breakevenUnitPrice =
+    core.totals.gridConsumptionMwh > 0
+      ? (core.totals.activeEnergyBaseAmount / core.totals.gridConsumptionMwh) *
+        (1 + breakevenOfferRate / 100)
+      : 0;
   const partial: CalculationResult = {
     valid: true,
     errors: [],
@@ -213,6 +249,7 @@ export const calculateOffer = (
       core.cashflow,
       core.totals.paymentChannelCost,
     ),
+    marketPriceSnapshot: clone(marketPriceResolution.values),
     totals: { ...core.totals, breakevenOfferRate, breakevenUnitPrice, customerAdvantage: 0 },
   };
   const referenceInvoice = calculateReferenceInvoice(
@@ -231,6 +268,7 @@ export const sensitivitySeries = (
   min = -5,
   max = 20,
   step = 1,
+  monthlyMarketPrices?: MonthlyMarketPrice[],
 ) => {
   const series: Array<{
     offerRate: number;
@@ -238,8 +276,19 @@ export const sensitivitySeries = (
     customerInvoice: number;
     customerAdvantage: number;
   }> = [];
+  const marketPriceResolution = resolveForecastMarketPrices(
+    listContractMonths(state.usageStart, state.usageEnd),
+    monthlyMarketPrices,
+    state.ptfTlMwh,
+    state.yekdemTlMwh,
+  );
+  if (marketPriceResolution.errors.length > 0) return series;
   for (let rate = min; rate <= max + 1e-9; rate += step) {
-    const core = calculateCore({ ...clone(state), offerRate: rate }, holidays);
+    const core = calculateCore(
+      { ...clone(state), offerRate: rate },
+      holidays,
+      marketPriceResolution.values,
+    );
     const customerAdvantage = core.totals.gesSelfConsumptionSavings - core.totals.offerMargin;
     series.push({
       offerRate: rate,

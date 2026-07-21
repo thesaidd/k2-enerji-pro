@@ -20,7 +20,7 @@ export const buildSupplierEvents = (
     const dailyPtf = period.days > 0 ? period.ptfAmount / period.days : 0;
     for (let day = 0; day < period.days; day += 1) {
       const deliveryDate = addIsoDays(period.start, day);
-      if (dailyPtf > 0)
+      if (dailyPtf !== 0)
         events.push({
           id: createId('cash'),
           date: epiasPaymentDate(deliveryDate, holidays),
@@ -106,7 +106,7 @@ export const buildDailyCashflow = (
       .filter((event) => event.type === 'customer_refund')
       .reduce((sum, event) => sum + event.amount, 0);
     const customerInflows = dayEvents
-      .filter((event) => event.direction === 'in' && event.type !== 'late_fee_payment')
+      .filter((event) => event.direction === 'in' && event.type === 'customer_payment')
       .reduce((sum, event) => sum + event.amount, 0);
     const lateFeeInflows = dayEvents
       .filter((event) => event.type === 'late_fee_payment')

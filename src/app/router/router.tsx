@@ -12,6 +12,7 @@ import { ChartsPage } from '../../pages/CustomerCharts/ChartsPage';
 import { TariffComparisonPage } from '../../pages/TariffComparison/TariffComparisonPage';
 import { ReportsPage } from '../../pages/Reports/ReportsPage';
 import { SettingsPage } from '../../pages/Settings/SettingsPage';
+import { PaymentCalendarPage } from '../../pages/PaymentCalendar/PaymentCalendarPage';
 import { NotFoundPage } from '../../pages/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
       { path: 'charts', element: <ChartsPage /> },
       { path: 'comparison', element: <TariffComparisonPage /> },
       { path: 'reports', element: <ReportsPage /> },
+      { path: 'payment-calendar', element: <PaymentCalendarPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],

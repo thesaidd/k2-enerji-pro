@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   BarChart3,
+  CalendarRange,
   Calculator,
   ChartNoAxesCombined,
   FileChartColumn,
@@ -27,6 +28,7 @@ const navItems = [
   { to: '/cost-calculation', label: 'Maliyet Hesaplama', icon: Calculator },
   { to: '/offers', label: 'Planlanan Teklifler', icon: WalletCards },
   { to: '/realization', label: 'Gerçekleşme Simülasyonu', icon: ReceiptText },
+  { to: '/payment-calendar', label: 'Ödeme / Kullanım Takvimi', icon: CalendarRange },
   { to: '/monthly-profit', label: 'Aylık Kâr', icon: BarChart3 },
   { to: '/charts', label: 'Grafikler', icon: ChartNoAxesCombined },
   { to: '/comparison', label: 'Tarife Karşılaştırması', icon: FileChartColumn },

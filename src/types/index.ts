@@ -27,6 +27,26 @@ export type PaymentDateReference =
   | 'fixed_day'
   | 'manual_date';
 export type GesMode = 'simple_self_consumption' | 'advanced_metering';
+export type MarketPriceSource = 'forecast' | 'actual' | 'legacy' | 'manual_override';
+
+export interface MonthlyMarketPrice {
+  month: string;
+  forecastPtfTlMwh: number | null;
+  actualPtfTlMwh: number | null;
+  forecastYekdemTlMwh: number | null;
+  actualYekdemTlMwh: number | null;
+  sourceNote?: string;
+  actualizedAt?: string;
+  updatedAt: string;
+}
+
+export interface MarketPriceSnapshot {
+  month: string;
+  ptfUnitPrice: number;
+  yekdemUnitPrice: number;
+  ptfPriceSource: MarketPriceSource;
+  yekdemPriceSource: MarketPriceSource;
+}
 
 export interface Customer {
   id: string;
@@ -156,6 +176,11 @@ export interface BillingPeriod {
   gesSelfConsumptionSavings: number;
   imbalanceAmount: number;
   piuAmount: number;
+  marketPriceMonth?: string;
+  ptfUnitPrice?: number;
+  yekdemUnitPrice?: number;
+  ptfPriceSource?: MarketPriceSource;
+  yekdemPriceSource?: MarketPriceSource;
 }
 
 export interface CashEvent {
@@ -277,6 +302,7 @@ export interface CalculationResult {
   plannedCashflow: DailyCashflowRow[];
   monthlyProfit: MonthlyProfitRow[];
   totals: CalculationTotals;
+  marketPriceSnapshot?: MarketPriceSnapshot[];
 }
 
 export interface CostDraft {
@@ -355,6 +381,8 @@ export interface PeriodRealizationOverride {
   valorRate?: number;
   scenarioOfferRate?: number;
   calculationDate?: ISODate;
+  ptfUnitPrice?: number;
+  yekdemUnitPrice?: number;
 }
 
 export interface LateFeeSegment {
@@ -455,10 +483,17 @@ export interface PeriodRealizationResult {
   actualNetProfit: number;
   variance: number;
   delinquency: InvoiceDelinquency;
+  marketPriceMonth?: string;
+  ptfUnitPrice?: number;
+  yekdemUnitPrice?: number;
+  ptfPriceSource?: MarketPriceSource;
+  yekdemPriceSource?: MarketPriceSource;
+  marketPriceWarnings?: string[];
 }
 
 export interface RealizationResult {
   periods: PeriodRealizationResult[];
+  billingPeriods?: BillingPeriod[];
   receivableLedger: ReceivableLedger;
   lateFeeDocuments: LateFeeAccrualDocument[];
   finalLateFeeDocuments: LateFeeAccrualDocument[];
@@ -470,6 +505,8 @@ export interface RealizationResult {
   totalLateFee: number;
   totalLateFeeVat: number;
   endingOpenReceivable: number;
+  actualCashEvents?: CashEvent[];
+  marketPriceWarnings?: string[];
 }
 
 export interface RealizationScenario {
@@ -501,4 +538,63 @@ export interface AppSettings {
   holidays: ISODate[];
   lateFee: LateFeeSettings;
   policyVersion: string;
+  monthlyMarketPrices: MonthlyMarketPrice[];
+}
+
+export type PaymentCalendarSourceType = 'planned_offer' | 'realization_scenario';
+
+export interface PaymentCalendarRow {
+  date: ISODate;
+  dayLabel: string;
+  consumptionMwh: number;
+  ptfOutflow: number;
+  yekdemOutflow: number;
+  distributionOutflow: number;
+  contractPowerOutflow: number;
+  btvOutflow: number;
+  kdvOutflow: number;
+  excessProductionOutflow: number;
+  customerGrossPrincipal: number;
+  customerNetCashIn: number;
+  lateFeeCashIn: number;
+  customerRefund: number;
+  paymentChannelCost: number;
+  customerAdvance: number;
+  openReceivable: number;
+  paymentDescription: string;
+  openingBalance: number;
+  balanceAfterOutflows: number;
+  interestBase: number;
+  valorInterest: number;
+  creditInterest: number;
+  closingBalance: number;
+  notes: string[];
+}
+
+export interface PaymentCalendarSummary {
+  totalCustomerCashIn: number;
+  totalLateFeeCashIn: number;
+  totalCashOutflow: number;
+  totalPaymentChannelCost: number;
+  totalCreditCost: number;
+  totalValorIncome: number;
+  minimumBalance: number;
+  maximumBalance: number;
+  endingBalance: number;
+  openReceivable: number;
+  customerAdvance: number;
+}
+
+export interface PaymentCalendarModel {
+  sourceType: PaymentCalendarSourceType;
+  sourceId: string;
+  sourceTitle: string;
+  customerId: string;
+  customerName: string;
+  sourceVersion: number;
+  calculationDate: string;
+  policyVersion: string;
+  priceSourceSummary: string;
+  rows: PaymentCalendarRow[];
+  summary: PaymentCalendarSummary;
 }

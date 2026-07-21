@@ -631,6 +631,20 @@ small {
 .span-2 {
   grid-column: span 2;
 }
+.span-3 {
+  grid-column: span 3;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .field {
   display: flex;
   flex-direction: column;
@@ -1809,6 +1823,40 @@ td small {
 .settings-grid .span-2 {
   grid-column: span 2;
 }
+.market-price-table table,
+.payment-calendar-table table {
+  min-width: 1500px;
+}
+.market-price-table input {
+  width: 150px;
+  height: 38px;
+  padding: 0 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--surface);
+}
+.calendar-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.calendar-source-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 18px;
+}
+.calendar-source-summary small {
+  width: 100%;
+  color: var(--muted);
+}
+.calendar-column-filters {
+  margin-top: 18px;
+}
+.payment-calendar-table td {
+  font-variant-numeric: tabular-nums;
+}
 .theme-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1993,6 +2041,9 @@ td small {
   .form-grid.five {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .span-3 {
+    grid-column: span 2;
+  }
   .template-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2118,6 +2169,9 @@ td small {
     min-height: 122px;
   }
   .span-2 {
+    grid-column: auto;
+  }
+  .span-3 {
     grid-column: auto;
   }
   .toolbar,
