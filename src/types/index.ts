@@ -310,10 +310,43 @@ export interface PlannedOffer {
 export interface ActualPayment {
   id: string;
   invoiceId?: string;
+  receivableInstallmentId?: string;
   date: ISODate;
   amount: number;
   channel: PaymentChannel;
   note?: string;
+}
+
+export interface ReceivablePaymentAllocation {
+  paymentId: string;
+  receivableInstallmentId: string;
+  invoiceId: string;
+  periodId: string;
+  date: ISODate;
+  amount: number;
+}
+
+export interface ReceivableInstallment {
+  id: string;
+  invoiceId: string;
+  periodId: string;
+  periodIndex: number;
+  sourcePlannedPaymentId?: string;
+  principalAmount: number;
+  dueDate: ISODate;
+  collectedAmount: number;
+  outstandingPrincipal: number;
+  allocations: ReceivablePaymentAllocation[];
+}
+
+export interface ReceivableLedger {
+  asOfDate: ISODate;
+  installments: ReceivableInstallment[];
+  allocations: ReceivablePaymentAllocation[];
+  totalPaymentsAsOf: number;
+  totalCollectedPrincipal: number;
+  totalOutstandingPrincipal: number;
+  customerAdvance: number;
 }
 
 export interface PeriodRealizationOverride {
@@ -325,6 +358,7 @@ export interface PeriodRealizationOverride {
 }
 
 export interface LateFeeSegment {
+  receivableInstallmentId?: string;
   startDate: ISODate;
   endDate: ISODate;
   days: number;
@@ -332,20 +366,83 @@ export interface LateFeeSegment {
   lateFee: number;
 }
 
+export interface ReceivableInstallmentDelinquency {
+  receivableInstallmentId: string;
+  invoiceId: string;
+  dueDate: ISODate;
+  principalAmount: number;
+  collectedAmount: number;
+  outstandingPrincipal: number;
+  delayDays: number;
+  segments: LateFeeSegment[];
+  lateFee: number;
+  sourceVatRate: number;
+  lateFeeVat: number;
+  totalLateFeeReceivable: number;
+}
+
 export interface InvoiceDelinquency {
   invoiceId: string;
   outstandingPrincipal: number;
   delayDays: number;
   segments: LateFeeSegment[];
+  installments: ReceivableInstallmentDelinquency[];
   lateFee: number;
   lateFeeVat: number;
   totalLateFeeReceivable: number;
+}
+
+export interface InvoiceCarryoverLine {
+  id: string;
+  kind: 'late_fee' | 'late_fee_vat';
+  label: 'Önceki Dönem Gecikme Bedeli' | 'Önceki Dönem Gecikme Bedeli KDV’si';
+  amount: number;
+  sourceDocumentIds: string[];
+  taxableAgain: false;
+  createsLateFee: false;
+  includedInBtvBase: false;
+  includedInKdvBase: false;
+}
+
+export interface LateFeeAccrualDocument {
+  id: string;
+  title: 'Gecikme Bedeli Tahakkuku' | 'Nihai Gecikme Bedeli Faturası';
+  kind: 'monthly_carryover' | 'final_late_fee_invoice';
+  sourceCustomerId: string;
+  sourceOfferId: string;
+  sourceScenarioId: string;
+  sourceInvoiceId: string;
+  sourceReceivableInstallmentId: string;
+  carryToPeriodId?: string;
+  issueDate: ISODate;
+  calculationStartDate: ISODate;
+  calculationEndDate: ISODate;
+  openPrincipal: number;
+  sourceVatRate: number;
+  lineItems: InvoiceCarryoverLine[];
+  lateFee: number;
+  lateFeeVat: number;
+  totalAmount: number;
+}
+
+export interface RealizationInvoiceSummary {
+  periodId: string;
+  activeEnergyInvoiceTotal: number;
+  btvBase: number;
+  btvAmount: number;
+  kdvBase: number;
+  kdvAmount: number;
+  carryoverLines: InvoiceCarryoverLine[];
+  carryoverTotal: number;
+  totalPayable: number;
 }
 
 export interface PeriodRealizationResult {
   periodId: string;
   plannedInvoice: number;
   plannedDueDate?: ISODate;
+  receivableInstallments: ReceivableInstallment[];
+  invoiceSummary: RealizationInvoiceSummary;
   actualPayments: ActualPayment[];
   outstandingPrincipal: number;
   delayDays: number;
@@ -362,6 +459,9 @@ export interface PeriodRealizationResult {
 
 export interface RealizationResult {
   periods: PeriodRealizationResult[];
+  receivableLedger: ReceivableLedger;
+  lateFeeDocuments: LateFeeAccrualDocument[];
+  finalLateFeeDocuments: LateFeeAccrualDocument[];
   actualCashflow: DailyCashflowRow[];
   monthlyProfit: MonthlyProfitRow[];
   plannedProfit: number;

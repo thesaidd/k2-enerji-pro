@@ -63,6 +63,7 @@ test('müşteriden rapora uçtan uca planlanan ve gerçekleşen akış', async (
   await page.getByLabel('Gerçek ödeme tarihi').fill('2026-08-25');
   await page.getByLabel('Tahsilat tutarı').fill('350000');
   await page.getByRole('button', { name: 'Tahsilat ekle' }).click();
+  await expect(page.getByRole('heading', { name: 'Nihai Gecikme Bedeli Faturası' })).toBeVisible();
   await page.getByRole('button', { name: 'Senaryoyu kaydet' }).click();
   await expect(page.getByText('Gerçekleşme senaryosu kaydedildi').last()).toBeVisible();
 
