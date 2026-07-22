@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_OFFER_STATE, DEFAULT_SETTINGS } from '../config/defaults';
 import { calculateOffer } from '../domain/profitability/calculation';
 import {
+  APP_VERSION,
   BACKUP_SCHEMA_VERSION,
   DataPortabilityService,
   prepareRestore,
@@ -51,7 +52,7 @@ describe('P0-C güvenli yedek önizleme ve migration', () => {
     const preview = prepareRestore({
       format: 'K2-ENERJIPRO',
       schemaVersion: BACKUP_SCHEMA_VERSION,
-      appVersion: '3.0.0',
+      appVersion: APP_VERSION,
       exportedAt: '2026-07-01T00:00:00.000Z',
       payload: collections(),
     });
@@ -145,7 +146,7 @@ describe('P0-C güvenli yedek önizleme ve migration', () => {
     const preview = prepareRestore({
       format: 'K2-ENERJIPRO',
       schemaVersion: BACKUP_SCHEMA_VERSION,
-      appVersion: '3.0.0',
+      appVersion: APP_VERSION,
       exportedAt: '2026-07-01T00:00:00.000Z',
       payload: collections(),
     });

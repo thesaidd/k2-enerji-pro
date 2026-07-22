@@ -12,7 +12,7 @@ import { applyPlannedReconciliation } from '../domain/reconciliation/reconciliat
 import { buildCustomerOfferReport, customerOfferReportRows } from '../domain/reporting/customerOfferReport';
 import { buildInternalAnalysisReport, internalAnalysisReportRows } from '../domain/reporting/internalAnalysisReport';
 import { resolveTariffForPeriod } from '../domain/tariff/tariff';
-import { prepareRestore, BACKUP_SCHEMA_VERSION, type BackupCollections } from '../services/storage/DataPortabilityService';
+import { APP_VERSION, prepareRestore, BACKUP_SCHEMA_VERSION, type BackupCollections } from '../services/storage/DataPortabilityService';
 import type { BillingPeriod, Customer, PlannedOffer, PlannedPayment, RealizationScenario, TariffVersion } from '../types';
 
 const billing = (index = 1, grossInvoice = 100): BillingPeriod =>
@@ -150,7 +150,7 @@ describe('P0-C raporlama zorunlu ek senaryoları', () => {
 });
 
 describe('P0-C backup zorunlu ek senaryoları', () => {
-  const envelope = (payload: BackupCollections) => ({ format: 'K2-ENERJIPRO', schemaVersion: BACKUP_SCHEMA_VERSION, appVersion: '3.0.0', exportedAt: '2026-01-01T00:00:00.000Z', payload });
+  const envelope = (payload: BackupCollections) => ({ format: 'K2-ENERJIPRO', schemaVersion: BACKUP_SCHEMA_VERSION, appVersion: APP_VERSION, exportedAt: '2026-01-01T00:00:00.000Z', payload });
   it('desteklenmeyen schema sürümünü reddeder', () => expect(() => prepareRestore({ ...envelope(backupFixture()), schemaVersion: 999 })).toThrow(/şema sürümü/i));
   it('geçersiz ISO tarihi reddeder', () => { const data = backupFixture(); data.plannedOffers[0]!.stateSnapshot.usageStart = 'bugün'; expect(() => prepareRestore(envelope(data))).toThrow(/ISO tarih/i); });
   it('yinelenen teklif idlerini reddeder', () => { const data = backupFixture(); data.plannedOffers.push(structuredClone(data.plannedOffers[0]!)); expect(() => prepareRestore(envelope(data))).toThrow(/yinelenen id/i); });

@@ -27,7 +27,7 @@ test('boş başlangıç, deterministik demo yükleme, kalıcılık ve seçici te
   await resetApplication(page);
 
   await expect(page.getByRole('heading', { name: 'İlk adımı seçin' })).toBeVisible();
-  await expect(page.getByText('K2 EnerjiPro 3.0 — Demo')).toBeVisible();
+  await expect(page.getByText('K2 EnerjiPro 3.0.3 — Demo')).toBeVisible();
 
   await page.getByRole('link', { name: 'Müşteriler' }).click();
   await page.getByRole('button', { name: 'Yeni müşteri' }).click();
@@ -63,7 +63,7 @@ test('rapor ayrımı, sürüm/tarife görünürlüğü ve güvenli yedek önizle
 
   await expect(page.getByRole('heading', { name: 'Tarihli demo tarife versiyonları' })).toBeVisible();
   await expect(page.getByRole('table', { name: 'Tarife versiyonları' }).locator('tbody tr')).toHaveCount(12);
-  await expect(page.getByRole('main').getByText('v3.0.0')).toBeVisible();
+  await expect(page.getByRole('main').getByText('v3.0.3')).toBeVisible();
   await expect(page.getByText('IndexedDB')).toBeVisible();
   await expect(page.getByText('Saatlik GES mahsuplaşması ve GES faturadan mahsup modu yoktur.')).toBeVisible();
 
@@ -80,7 +80,7 @@ test('rapor ayrımı, sürüm/tarife görünürlüğü ve güvenli yedek önizle
     payload: { customers: unknown[]; plannedOffers: unknown[]; realizationScenarios: unknown[] };
   };
   expect(backup.schemaVersion).toBe(2);
-  expect(backup.appVersion).toBe('3.0.0');
+  expect(backup.appVersion).toBe('3.0.3');
   expect(backup.payload.customers).toHaveLength(3);
   expect(backup.payload.plannedOffers).toHaveLength(6);
   expect(backup.payload.realizationScenarios).toHaveLength(1);
@@ -91,7 +91,7 @@ test('rapor ayrımı, sürüm/tarife görünürlüğü ve güvenli yedek önizle
   await expect(page.locator('#backup').getByText('6', { exact: true })).toBeVisible();
   await page.locator('#backup').getByRole('button', { name: 'İptal' }).click();
 
-  await backupInput.setInputFiles({ name: 'corrupt.json', mimeType: 'application/json', buffer: Buffer.from('{"format":"K2-ENERJIPRO","schemaVersion":2,"appVersion":"3.0.0","payload":null}') });
+  await backupInput.setInputFiles({ name: 'corrupt.json', mimeType: 'application/json', buffer: Buffer.from('{"format":"K2-ENERJIPRO","schemaVersion":2,"appVersion":"3.0.3","payload":null}') });
   await expect(page.getByText('Yedek dosyası okunamadı')).toBeVisible();
 
   const legacyBackup = JSON.stringify({
@@ -108,7 +108,7 @@ test('rapor ayrımı, sürüm/tarife görünürlüğü ve güvenli yedek önizle
   await page.getByLabel('Kaynak teklif').selectOption('demo-offer-standard');
   const paper = page.locator('.report-paper');
   await expect(paper).toContainText('DEMO — RESMÎ FATURA DEĞİLDİR');
-  await expect(paper).toContainText('ENERJİPRO 3.0.0 · DEMO');
+  await expect(paper).toContainText('ENERJİPRO 3.0.3 · DEMO');
   await expect(paper).not.toContainText('Net kâr');
   await expect(paper).not.toContainText('Kredi maliyeti');
 
@@ -138,6 +138,7 @@ test('rapor ayrımı, sürüm/tarife görünürlüğü ve güvenli yedek önizle
   await expect(page.locator('html')).toHaveAttribute('data-customer-print', 'yes');
 
   await page.getByLabel('Rapor türü').selectOption('internal_analysis');
+  await expect(paper).toContainText('ENERJİPRO 3.0.3');
   await expect(paper).toContainText('ŞİRKET İÇİ / GİZLİ');
   await expect(paper).toContainText('Net kâr');
   await expect(paper).toContainText('Profit ledger');
