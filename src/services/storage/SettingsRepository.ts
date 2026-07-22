@@ -15,6 +15,9 @@ export const normalizeAppSettings = (input: unknown): AppSettings => {
       ...structuredClone(source.lateFee ?? {}),
     },
     monthlyMarketPrices: normalizeMonthlyMarketPrices(source.monthlyMarketPrices ?? []),
+    tariffVersions: Array.isArray(source.tariffVersions)
+      ? structuredClone(source.tariffVersions)
+      : structuredClone(DEFAULT_SETTINGS.tariffVersions),
   };
   const parsed = appSettingsSchema.safeParse(candidate);
   if (!parsed.success) throw new Error(parsed.error.issues.map((issue) => issue.message).join(' '));

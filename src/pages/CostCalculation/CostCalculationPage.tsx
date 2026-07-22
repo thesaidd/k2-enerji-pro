@@ -14,6 +14,7 @@ import { useAppStore } from '../../app/store/useAppStore';
 import { applyTariffDefaults, TARIFFS } from '../../config/tariffs';
 import { calculateOffer, sensitivitySeries } from '../../domain/profitability/calculation';
 import { listContractMonths } from '../../domain/market-prices/marketPrices';
+import { resolveTariffForPeriod } from '../../domain/tariff/tariff';
 import { PaymentPlanEditor } from '../../components/payment-plan/PaymentPlanEditor';
 import { SensitivityChart } from '../../components/charts/SensitivityChart';
 import { MetricCard } from '../../components/ui/MetricCard';
@@ -29,6 +30,15 @@ const steps = [
   { number: 4, label: 'Başabaş', hint: 'Maliyet sonucu' },
   { number: 5, label: 'Teklif', hint: 'Canlı simülasyon' },
 ];
+
+const monthBounds = (month: string, usageStart: string, usageEnd: string) => {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const lastDay = new Date(Date.UTC(year!, monthNumber!, 0)).toISOString().slice(0, 10);
+  return {
+    start: usageStart.startsWith(month) ? usageStart : `${month}-01`,
+    end: usageEnd.startsWith(month) ? usageEnd : lastDay,
+  };
+};
 
 export function CostCalculationPage() {
   const navigate = useNavigate();
@@ -47,15 +57,29 @@ export function CostCalculationPage() {
     [draft, step],
   );
   const result = useMemo(
-    () => calculateOffer(effectiveState, settings.holidays, settings.monthlyMarketPrices),
-    [effectiveState, settings.holidays, settings.monthlyMarketPrices],
+    () =>
+      calculateOffer(
+        effectiveState,
+        settings.holidays,
+        settings.monthlyMarketPrices,
+        settings.tariffVersions,
+      ),
+    [effectiveState, settings.holidays, settings.monthlyMarketPrices, settings.tariffVersions],
   );
   const sensitivity = useMemo(
     () =>
       step === 5
-        ? sensitivitySeries(draft, settings.holidays, -5, 20, 1, settings.monthlyMarketPrices)
+        ? sensitivitySeries(
+            draft,
+            settings.holidays,
+            -5,
+            20,
+            1,
+            settings.monthlyMarketPrices,
+            settings.tariffVersions,
+          )
         : [],
-    [draft, settings.holidays, settings.monthlyMarketPrices, step],
+    [draft, settings.holidays, settings.monthlyMarketPrices, settings.tariffVersions, step],
   );
   const marketMonths = useMemo(
     () => listContractMonths(draft.usageStart, draft.usageEnd),
@@ -75,6 +99,30 @@ export function CostCalculationPage() {
   const update = <K extends keyof OfferState>(key: K, value: OfferState[K]) =>
     setDraft({ [key]: value } as Pick<OfferState, K>);
   const applyTariff = (key: string) => setDraft(applyTariffDefaults(key, draft.hasDistribution));
+  const updateTariffOverride = (
+    month: string,
+    patch: Partial<NonNullable<OfferState['tariffOverrides']>[number]> | null,
+  ) => {
+    const current = draft.tariffOverrides ?? [];
+    update(
+      'tariffOverrides',
+      patch === null
+        ? current.filter((override) => override.month !== month)
+        : current.some((override) => override.month === month)
+          ? current.map((override) => (override.month === month ? { ...override, ...patch } : override))
+          : [
+              ...current,
+              {
+                month,
+                kdvRate: draft.kdvRate,
+                btvRate: draft.btvRate,
+                distributionUnitTlMwh: draft.distributionUnitTlMwh,
+                reason: '',
+                ...patch,
+              },
+            ],
+    );
+  };
   const goNext = () => {
     if (step === 1 && (!draft.usageStart || !draft.usageEnd || draft.monthlyConsumption < 0)) {
       notify({ tone: 'error', title: 'Tüketim bilgilerini kontrol edin' });
@@ -346,6 +394,8 @@ export function CostCalculationPage() {
                 step="0.001"
                 value={draft.distributionUnitTlMwh}
                 onValue={(value) => update('distributionUnitTlMwh', value)}
+                disabled
+                hint="Dönemsel tarife kataloğundan gelir; değişiklik için aşağıdaki override alanını kullanın."
               />
               <NumberField
                 label="Sözleşme gücü"
@@ -364,6 +414,7 @@ export function CostCalculationPage() {
                 step="0.01"
                 value={draft.kdvRate}
                 onValue={(value) => update('kdvRate', value)}
+                disabled
               />
               <NumberField
                 label="BTV"
@@ -373,7 +424,90 @@ export function CostCalculationPage() {
                 step="0.01"
                 value={draft.btvRate}
                 onValue={(value) => update('btvRate', value)}
+                disabled
               />
+              <div className="table-wrap span-3 wide-table">
+                <table aria-label="Dönemsel tarife kaynakları">
+                  <thead>
+                    <tr>
+                      <th>Dönem</th>
+                      <th>Tarife kaynağı</th>
+                      <th>KDV / BTV / Dağıtım</th>
+                      <th>Manuel override</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {marketMonths.map((month) => {
+                      const bounds = monthBounds(month, draft.usageStart, draft.usageEnd);
+                      const resolution = resolveTariffForPeriod(
+                        draft.customerType,
+                        bounds.start,
+                        bounds.end,
+                        settings.tariffVersions,
+                        draft.tariffOverrides,
+                      );
+                      const override = draft.tariffOverrides?.find(
+                        (candidate) => candidate.month === month,
+                      );
+                      return (
+                        <tr key={`tariff-${month}`}>
+                          <td><strong>{month}</strong></td>
+                          <td>
+                            {resolution.snapshot
+                              ? `${resolution.snapshot.sourceLabel} · ${resolution.snapshot.versionLabel}`
+                              : <span className="negative-text">{resolution.error}</span>}
+                          </td>
+                          <td>
+                            {override ? (
+                              <div className="inline-fields">
+                                <input aria-label={`${month} KDV`} type="number" min="0" max="100" value={override.kdvRate} onChange={(event) => updateTariffOverride(month, { kdvRate: Number(event.target.value) })} />
+                                <input aria-label={`${month} BTV`} type="number" min="0" max="100" value={override.btvRate} onChange={(event) => updateTariffOverride(month, { btvRate: Number(event.target.value) })} />
+                                <input aria-label={`${month} dağıtım`} type="number" min="0" value={override.distributionUnitTlMwh} onChange={(event) => updateTariffOverride(month, { distributionUnitTlMwh: Number(event.target.value) })} />
+                              </div>
+                            ) : resolution.snapshot
+                              ? `%${resolution.snapshot.kdvRate} / %${resolution.snapshot.btvRate} / ${formatNumber(resolution.snapshot.distributionUnitTlMwh, 3)} TL/MWh`
+                              : '—'}
+                          </td>
+                          <td>
+                            <label className="switch compact-switch">
+                              <input
+                                aria-label={`${month} manuel override`}
+                                type="checkbox"
+                                checked={Boolean(override)}
+                                onChange={(event) =>
+                                  updateTariffOverride(
+                                    month,
+                                    event.target.checked
+                                      ? {
+                                          kdvRate: resolution.snapshot?.kdvRate ?? draft.kdvRate,
+                                          btvRate: resolution.snapshot?.btvRate ?? draft.btvRate,
+                                          distributionUnitTlMwh:
+                                            resolution.snapshot?.distributionUnitTlMwh ??
+                                            draft.distributionUnitTlMwh,
+                                        }
+                                      : null,
+                                  )
+                                }
+                              />
+                              <i />
+                            </label>
+                            {override && (
+                              <input
+                                aria-label={`${month} override nedeni`}
+                                placeholder="Override nedeni (zorunlu)"
+                                value={override.reason}
+                                onChange={(event) =>
+                                  updateTariffOverride(month, { reason: event.target.value })
+                                }
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
               <NumberField
                 label="Dengesizlik"
                 unit="%"
@@ -649,7 +783,11 @@ export function CostCalculationPage() {
             <div className="final-save-bar">
               <div>
                 <strong>Nihai teklif snapshot’ı</strong>
-                <span>Müşteri, geçerli ödeme planı ve teklif oranı zorunludur.</span>
+                <span>
+                  {result.valid
+                    ? 'Müşteri, geçerli ödeme planı ve teklif oranı zorunludur.'
+                    : result.errors.join(' ')}
+                </span>
               </div>
               <button
                 className="button primary"
@@ -693,9 +831,22 @@ function AdvancedGes({
   return (
     <div>
       <div className="notice warning">
-        <strong>Vergi modu varsayılan olarak manuel.</strong> İhtiyaç fazlası satın alımı öz tüketim
-        tasarrufundan ve müşteri tahsilatından ayrı saklanır.
+        <strong>Demo sınırı:</strong> Saatlik mahsuplaşma ve faturadan mahsup final teklif için
+        desteklenmez. İhtiyaç fazlası satın alımı öz tüketim tasarrufundan ve müşteri tahsilatından
+        ayrı saklanır.
       </div>
+      {(value.nettingMethod === 'hourly' || value.settlementMode === 'invoice_offset') && (
+        <div className="notice error">
+          {value.nettingMethod === 'hourly'
+            ? 'Saatlik mahsuplaşma bu demo sürümünde desteklenmiyor. Saatlik üretim ve tüketim serisi gerektirir.'
+            : 'Faturadan mahsup bu demo sürümünde desteklenmiyor; vergi ve fatura matrahı etkileri tanımlı değil.'}
+        </div>
+      )}
+      {value.excessProductionTaxMode === 'no_tax_in_demo' && (
+        <div className="notice info">
+          Demo varsayımı: ihtiyaç fazlası üretim alımına ek vergi hesaplanmamaktadır.
+        </div>
+      )}
       <div className="form-grid four">
         <NumberField
           label="GES toplam üretimi"
@@ -751,6 +902,15 @@ function AdvancedGes({
           value={value.excessPurchasePrice ?? 0}
           onValue={(next) => change('excessPurchasePrice', next)}
         />
+        <NumberField
+          label="İhtiyaç fazlası ödeme günü"
+          unit="gün"
+          min={0}
+          step="1"
+          value={value.excessPurchasePaymentOffsetDays ?? 10}
+          onValue={(next) => change('excessPurchasePaymentOffsetDays', next)}
+          hint={`Dönem sonundan ${value.excessPurchasePaymentOffsetDays ?? 10} gün sonra; tatilse ilk iş günü.`}
+        />
         <label className="field">
           <span>Vergi durumu</span>
           <select
@@ -761,6 +921,16 @@ function AdvancedGes({
             <option value="no_tax_in_demo">Demoda vergi yok</option>
           </select>
         </label>
+        {value.excessProductionTaxMode === 'manual' && (
+          <NumberField
+            label="Sabit vergi/maliyet"
+            unit="TL"
+            min={0}
+            value={value.manualTaxAmountTl}
+            onValue={(next) => change('manualTaxAmountTl', next)}
+            hint="Oran türetilmez; yalnız açık girilen sabit tutar kullanılır."
+          />
+        )}
         <label className="field">
           <span>Mahsup şekli</span>
           <select

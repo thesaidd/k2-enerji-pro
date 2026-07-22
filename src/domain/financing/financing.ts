@@ -1,4 +1,4 @@
-import { addIsoDays, epiasPaymentDate } from '../calendar/calendar';
+import { addIsoDays, adjustToBusinessDay, epiasPaymentDate } from '../calendar/calendar';
 import { FINANCING_DAY_BASIS } from '../../config/calculationPolicy';
 import { createId } from '../../config/paymentPlans';
 import type {
@@ -60,7 +60,10 @@ export const buildSupplierEvents = (
       hasPeriodExcessEvent = true;
       events.push({
         id: createId('cash'),
-        date: addIsoDays(period.end, 10),
+        date: adjustToBusinessDay(
+          addIsoDays(period.end, state.ges.excessPurchasePaymentOffsetDays ?? 10),
+          holidays,
+        ),
         type: 'excess_production_purchase',
         direction: 'out',
         amount: period.excessPurchaseAmount!,
@@ -77,7 +80,10 @@ export const buildSupplierEvents = (
   ) {
     events.push({
       id: createId('cash'),
-      date: addIsoDays(state.usageEnd, 10),
+      date: adjustToBusinessDay(
+        addIsoDays(state.usageEnd, state.ges.excessPurchasePaymentOffsetDays ?? 10),
+        holidays,
+      ),
       type: 'excess_production_purchase',
       direction: 'out',
       amount: excessProductionPurchase,
