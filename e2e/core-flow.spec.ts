@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 test('müşteriden rapora uçtan uca planlanan ve gerçekleşen akış', async ({ page }) => {
   await page.goto('/');
@@ -65,6 +66,8 @@ test('müşteriden rapora uçtan uca planlanan ve gerçekleşen akış', async (
   await expect(page).toHaveURL(/\/realization\//);
   const scenarioUrl = page.url();
   await expect(page.getByText('Bu ekran kaynak teklifi değiştirmez.')).toBeVisible();
+  await page.getByLabel('Hesaplama tarihi').fill('');
+  await expect(page.getByRole('heading', { name: '5 Gün Gecikmeli' })).toBeVisible();
   await page.getByLabel('Hesaplama tarihi').fill('2026-08-31');
   const creditMetric = page.locator('.metric-card').filter({ hasText: 'Gerçek kredi / valör' });
   const initialCreditMetric = await creditMetric.textContent();
@@ -105,6 +108,34 @@ test('müşteriden rapora uçtan uca planlanan ve gerçekleşen akış', async (
   await expect(page.locator('.metric-card').filter({ hasText: 'Efektif kredi oranı' })).toContainText(
     '%80,00',
   );
+
+  const csvDownloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Takvim CSV' }).click();
+  const csvDownload = await csvDownloadPromise;
+  expect(csvDownload.suggestedFilename()).toMatch(/-takvim\.csv$/);
+  const csvPath = await csvDownload.path();
+  expect(csvPath).not.toBeNull();
+  const csvContent = await readFile(csvPath!, 'utf8');
+  expect(csvContent).toContain('Açık finansman bakiyesi');
+  expect(csvContent).toContain('Kanal maliyeti');
+
+  const excelDownloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Excel uyumlu tablo' }).click();
+  const excelDownload = await excelDownloadPromise;
+  expect(excelDownload.suggestedFilename()).toMatch(/-takvim\.xls$/);
+  const excelPath = await excelDownload.path();
+  expect(excelPath).not.toBeNull();
+  const excelContent = await readFile(excelPath!, 'utf8');
+  expect(excelContent).toContain('<table>');
+  expect(excelContent).toContain('Açık finansman bakiyesi');
+
+  await page.evaluate(() => {
+    window.print = () => {
+      document.documentElement.dataset.printInvoked = 'true';
+    };
+  });
+  await page.getByRole('button', { name: 'PDF / Yazdır' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-print-invoked', 'true');
 
   await page.getByRole('link', { name: 'Aylık Kâr' }).click();
   await page.getByLabel('Planlanan teklif').selectOption({ index: 1 });

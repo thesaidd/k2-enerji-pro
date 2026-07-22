@@ -219,6 +219,7 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
   const [scenario, setScenario] = useState<RealizationScenario>(() =>
     structuredClone(initialScenario),
   );
+  const [asOfDateDraft, setAsOfDateDraft] = useState(initialScenario.asOfDate);
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
   const [bulkRate, setBulkRate] = useState(0);
   const [payment, setPayment] = useState<Omit<ActualPayment, 'id'>>({
@@ -371,8 +372,17 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
             <span>Hesaplama tarihi</span>
             <input
               type="date"
-              value={scenario.asOfDate}
-              onChange={(event) => updateScenario({ asOfDate: event.target.value })}
+              value={asOfDateDraft}
+              onChange={(event) => {
+                const nextAsOfDate = event.target.value;
+                setAsOfDateDraft(nextAsOfDate);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(nextAsOfDate)) {
+                  updateScenario({ asOfDate: nextAsOfDate });
+                }
+              }}
+              onBlur={() => {
+                if (!asOfDateDraft) setAsOfDateDraft(scenario.asOfDate);
+              }}
             />
             <small>Gecikme bu tarihe kadar hesaplanır.</small>
           </label>
