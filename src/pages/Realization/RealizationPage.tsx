@@ -17,6 +17,7 @@ import {
   calculateRealization,
   createRealizationScenario,
   newActualPaymentId,
+  newActualRefundId,
 } from '../../domain/realization/realization';
 import { paymentCalendarUrl } from '../../domain/payment-calendar/paymentCalendar';
 import { marketPriceSourceLabel } from '../../domain/market-prices/marketPrices';
@@ -30,7 +31,12 @@ import { NumberField } from '../../components/ui/NumberField';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatDate, formatMoney, formatNumber } from '../../components/ui/format';
-import type { ActualPayment, PaymentChannel, RealizationScenario } from '../../types';
+import type {
+  ActualCustomerRefund,
+  ActualPayment,
+  PaymentChannel,
+  RealizationScenario,
+} from '../../types';
 
 export function RealizationPage() {
   const { scenarioId } = useParams();
@@ -214,6 +220,7 @@ function ScenarioList() {
 
 function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScenario }) {
   const saveScenario = useAppStore((state) => state.saveScenario);
+  const notify = useAppStore((state) => state.notify);
   const settings = useAppStore((state) => state.settings);
   const monthlyRate = settings.lateFee.monthlyRate;
   const [scenario, setScenario] = useState<RealizationScenario>(() =>
@@ -228,6 +235,11 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
     channel: 'eft',
     commissionRate: 0,
     commissionBearer: 'epsas',
+    note: '',
+  });
+  const [refund, setRefund] = useState<Omit<ActualCustomerRefund, 'id'>>({
+    date: initialScenario.asOfDate,
+    amount: 0,
     note: '',
   });
   const result = useMemo(
@@ -253,6 +265,25 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
       actualPayments: [...scenario.actualPayments, { ...payment, id: newActualPaymentId() }],
     });
     setPayment({ ...payment, amount: 0, note: '' });
+  };
+  const addRefund = (event: FormEvent) => {
+    event.preventDefault();
+    if (refund.amount <= 0 || !refund.date || refund.date > scenario.asOfDate) return;
+    if (refund.amount > result.receivableLedger.customerAdvance + 1e-6) {
+      notify({
+        tone: 'error',
+        title: 'İade müşteri avansını aşamaz',
+        detail: `Kullanılabilir avans ${formatMoney(result.receivableLedger.customerAdvance)}`,
+      });
+      return;
+    }
+    updateScenario({
+      actualRefunds: [
+        ...(scenario.actualRefunds ?? []),
+        { ...refund, id: newActualRefundId() },
+      ],
+    });
+    setRefund({ ...refund, amount: 0, note: '' });
   };
   const applyRate = (scope: 'selected' | 'all') => {
     const ids =
@@ -444,6 +475,75 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
             Tüm aylara uygula
           </button>
         </div>
+      </section>
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">MÜŞTERİ AVANSI</span>
+            <h2>Gerçek müşteri iadesi</h2>
+          </div>
+          <strong>{formatMoney(result.receivableLedger.customerAdvance)} kullanılabilir</strong>
+        </div>
+        <div className="notice info">
+          İade kâr değildir; müşteri avansını azaltır ve finansman nakit bakiyesine çıkış olarak
+          girer. Planlanan iade talimatı gerçekleşmiş iade sayılmaz.
+        </div>
+        <form className="form-grid four" onSubmit={addRefund}>
+          <label className="field">
+            <span>Gerçek iade tarihi</span>
+            <input
+              type="date"
+              value={refund.date}
+              max={scenario.asOfDate}
+              onChange={(event) => setRefund({ ...refund, date: event.target.value })}
+            />
+          </label>
+          <NumberField
+            label="İade tutarı"
+            unit="TL"
+            min={0}
+            max={result.receivableLedger.customerAdvance}
+            step="0.01"
+            value={refund.amount}
+            onValue={(amount) => setRefund({ ...refund, amount })}
+          />
+          <label className="field">
+            <span>Not</span>
+            <input
+              value={refund.note ?? ''}
+              onChange={(event) => setRefund({ ...refund, note: event.target.value })}
+            />
+          </label>
+          <button className="button primary align-end" disabled={result.receivableLedger.customerAdvance <= 0}>
+            <Plus size={16} /> İade ekle
+          </button>
+        </form>
+        {(scenario.actualRefunds ?? []).length > 0 && (
+          <div className="payment-chips">
+            {(scenario.actualRefunds ?? []).map((item) => (
+              <div className="payment-chip" key={item.id}>
+                <CalendarClock size={16} />
+                <div>
+                  <strong>{formatMoney(item.amount)}</strong>
+                  <small>{formatDate(item.date)} · Gerçek müşteri iadesi</small>
+                </div>
+                <button
+                  className="icon-button danger"
+                  aria-label="İadeyi sil"
+                  onClick={() =>
+                    updateScenario({
+                      actualRefunds: (scenario.actualRefunds ?? []).filter(
+                        (candidate) => candidate.id !== item.id,
+                      ),
+                    })
+                  }
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
       <section className="panel">
         <div className="panel-heading">

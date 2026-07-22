@@ -86,6 +86,18 @@ const fallbackActualCashEvents = (scenario: RealizationScenario): CashEvent[] =>
       label: 'Gerçek müşteri tahsilatı',
       note: payment.note,
     })),
+  ...(scenario.actualRefunds ?? [])
+    .filter((refund) => refund.date <= scenario.asOfDate && refund.amount > 0)
+    .map<CashEvent>((refund) => ({
+      id: refund.id,
+      date: refund.date,
+      type: 'customer_refund',
+      direction: 'out',
+      amount: refund.amount,
+      periodId: refund.sourcePeriodId,
+      label: 'Gerçek müşteri iadesi',
+      note: refund.note,
+    })),
 ];
 
 const receivableBalances = (
@@ -93,6 +105,7 @@ const receivableBalances = (
   installments: ReceivableInstallment[],
   ledger: ReceivableLedger,
   payments: ActualPayment[],
+  refunds: CashEvent[],
 ): { customerAdvance: number; openReceivable: number } => {
   let customerAdvance = 0;
   let openReceivable = 0;
@@ -113,7 +126,11 @@ const receivableBalances = (
     );
     customerAdvance += Math.max(0, payment.amount - allocated);
   }
-  return { customerAdvance, openReceivable };
+  const refunded = sum(
+    refunds.filter((event) => event.date <= date),
+    (event) => event.amount,
+  );
+  return { customerAdvance: Math.max(0, customerAdvance - refunded), openReceivable };
 };
 
 interface CalendarSource {
@@ -179,6 +196,7 @@ const buildModel = (source: CalendarSource): PaymentCalendarModel => {
       source.ledger.installments,
       source.ledger,
       source.payments,
+      source.cashEvents.filter((event) => event.type === 'customer_refund'),
     );
     rows.push({
       date,
@@ -259,6 +277,14 @@ export const buildPlannedPaymentCalendar = (
       ...(paymentDescriptions.get(payment.settlementDate) ?? []),
       `${payment.planRowName} · ${payment.paymentChannel}`,
     ]);
+  const annotations = new Map<string, string[]>();
+  for (const item of offer.resultSnapshot.reconciliationInstructions ?? []) {
+    const date = item.scheduledDate ?? item.referenceDate;
+    annotations.set(date, [
+      ...(annotations.get(date) ?? []),
+      `Planlanan mutabakat · ${item.note} · ${item.amount.toFixed(2)} TL`,
+    ]);
+  }
   return buildModel({
     sourceType: 'planned_offer',
     sourceId: offer.id,
@@ -282,7 +308,7 @@ export const buildPlannedPaymentCalendar = (
     ledger,
     payments,
     paymentDescriptions,
-    annotations: new Map(),
+    annotations,
   });
 };
 
@@ -300,6 +326,11 @@ export const buildRealizationPaymentCalendar = (
       ...(paymentDescriptions.get(payment.date) ?? []),
       `Gerçek tahsilat · ${payment.channel}${payment.note ? ` · ${payment.note}` : ''}`,
     ]);
+  for (const refund of (scenario.actualRefunds ?? []).filter((item) => item.date <= scenario.asOfDate))
+    paymentDescriptions.set(refund.date, [
+      ...(paymentDescriptions.get(refund.date) ?? []),
+      `Gerçek müşteri iadesi${refund.note ? ` · ${refund.note}` : ''}`,
+    ]);
   const priceSnapshot = result.periods.map((period) => ({
     month: period.marketPriceMonth ?? '',
     ptfUnitPrice: period.ptfUnitPrice ?? 0,
@@ -308,6 +339,13 @@ export const buildRealizationPaymentCalendar = (
     yekdemPriceSource: period.yekdemPriceSource ?? 'legacy',
   }));
   const annotations = new Map<string, string[]>();
+  for (const item of scenario.sourceOfferSnapshot.resultSnapshot.reconciliationInstructions ?? []) {
+    const date = item.scheduledDate ?? item.referenceDate;
+    annotations.set(date, [
+      ...(annotations.get(date) ?? []),
+      `Planlanan mutabakat (gerçekleşmiş sayılmaz) · ${item.note} · ${item.amount.toFixed(2)} TL`,
+    ]);
+  }
   for (const document of result.lateFeeDocuments)
     annotations.set(document.issueDate, [
       ...(annotations.get(document.issueDate) ?? []),

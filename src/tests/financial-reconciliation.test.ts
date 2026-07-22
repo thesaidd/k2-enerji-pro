@@ -147,6 +147,7 @@ describe('gerçekleşme finansman ufku ve override', () => {
     const plan = createPaymentPlan('standard_deferred');
     plan.rows[0]!.amountType = 'period_fixed_tl';
     plan.rows[0]!.amountValue = 1;
+    plan.reconciliation.underpaymentAction = 'leave_open';
     const result = offerFor({ paymentPlan: plan }).resultSnapshot;
     expect(result.openFinancingBalance).toBeGreaterThan(0);
     expect(result.endingCashBalance).toBeLessThan(0);

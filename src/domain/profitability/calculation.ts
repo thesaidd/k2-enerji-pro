@@ -1,5 +1,9 @@
 import { CALCULATION_POLICY_VERSION } from '../../config/calculationPolicy';
 import { DEFAULT_OFFER_STATE } from '../../config/defaults';
+import { DEFAULT_TARIFF_VERSIONS } from '../../config/tariffs';
+import { generateBillingPeriods } from '../calendar/calendar';
+import { energyToMwh } from '../consumption/conversions';
+import { validateGesForDemo } from '../ges/ges';
 import { calculateInvoices } from '../invoice/invoice';
 import { calculatePlannedPayments } from '../payment-plan/paymentPlan';
 import {
@@ -19,12 +23,14 @@ import {
 } from '../comparison/tariffComparison';
 import { offerStateSchema } from '../validation/schemas';
 import { listContractMonths, resolveForecastMarketPrices } from '../market-prices/marketPrices';
+import { validateTariffPeriods } from '../tariff/tariff';
 import type {
   CalculationResult,
   CalculationTotals,
   MarketPriceSnapshot,
   MonthlyMarketPrice,
   OfferState,
+  TariffVersion,
 } from '../../types';
 
 const clone = <T>(value: T): T => structuredClone(value);
@@ -36,6 +42,7 @@ export const normalizeOfferState = (input: Partial<OfferState>): OfferState => (
   ...clone(input),
   ges: { ...clone(DEFAULT_OFFER_STATE.ges), ...clone(input.ges ?? {}) },
   paymentPlan: clone(input.paymentPlan ?? DEFAULT_OFFER_STATE.paymentPlan),
+  tariffOverrides: clone(input.tariffOverrides ?? []),
 });
 
 interface CoreResult {
@@ -46,6 +53,9 @@ interface CoreResult {
   cashflow: CalculationResult['plannedCashflow'];
   profitLedger: CalculationResult['profitLedger'];
   warnings: string[];
+  reconciliationInstructions: CalculationResult['reconciliationInstructions'];
+  endingAdvance: number;
+  endingReceivable: number;
   totals: Omit<
     CalculationTotals,
     'breakevenOfferRate' | 'breakevenUnitPrice' | 'customerAdvantage'
@@ -56,8 +66,9 @@ const calculateCore = (
   state: OfferState,
   holidays: string[] = [],
   marketPrices?: MarketPriceSnapshot[],
+  tariffVersions: TariffVersion[] = DEFAULT_TARIFF_VERSIONS,
 ): CoreResult => {
-  const invoices = calculateInvoices(state, marketPrices);
+  const invoices = calculateInvoices(state, marketPrices, tariffVersions);
   const settlement = calculatePlannedPayments(
     invoices.periods,
     state.paymentPlan,
@@ -71,9 +82,11 @@ const calculateCore = (
     invoices.excessProductionPurchase,
     holidays,
   );
-  const cashEvents = [...supplierEvents, ...paymentsToCashEvents(settlement.payments)].sort(
-    (a, b) => a.date.localeCompare(b.date),
-  );
+  const cashEvents = [
+    ...supplierEvents,
+    ...paymentsToCashEvents(settlement.payments),
+    ...settlement.reconciliationCashEvents,
+  ].sort((a, b) => a.date.localeCompare(b.date));
   const cashflow = buildDailyCashflow(cashEvents, state.creditRate, state.valorRate);
   const profitLedger = buildPlannedProfitLedger(invoices.periods, settlement.payments, cashflow);
   const activeEnergyBaseAmount = sum(invoices.periods, (period) => period.activeEnergyBaseAmount);
@@ -109,6 +122,9 @@ const calculateCore = (
           ]
         : []),
     ],
+    reconciliationInstructions: settlement.reconciliationInstructions,
+    endingAdvance: settlement.endingAdvance,
+    endingReceivable: settlement.endingReceivable,
     totals: {
       grossConsumptionMwh: sum(invoices.periods, (period) => period.grossConsumptionMwh),
       gesSelfConsumptionMwh: sum(invoices.periods, (period) => period.gesSelfConsumptionMwh),
@@ -147,18 +163,19 @@ const findBreakevenRate = (
   state: OfferState,
   holidays: string[],
   marketPrices?: MarketPriceSnapshot[],
+  tariffVersions: TariffVersion[] = DEFAULT_TARIFF_VERSIONS,
 ): number => {
   let low = -99;
   let high = 100;
-  let lowProfit = calculateCore({ ...clone(state), offerRate: low }, holidays, marketPrices).totals
+  let lowProfit = calculateCore({ ...clone(state), offerRate: low }, holidays, marketPrices, tariffVersions).totals
     .netProfit;
-  let highProfit = calculateCore({ ...clone(state), offerRate: high }, holidays, marketPrices)
+  let highProfit = calculateCore({ ...clone(state), offerRate: high }, holidays, marketPrices, tariffVersions)
     .totals.netProfit;
   if (lowProfit >= 0) return low;
   if (highProfit <= 0) return high;
   for (let iteration = 0; iteration < 45; iteration += 1) {
     const middle = (low + high) / 2;
-    const profit = calculateCore({ ...clone(state), offerRate: middle }, holidays, marketPrices)
+    const profit = calculateCore({ ...clone(state), offerRate: middle }, holidays, marketPrices, tariffVersions)
       .totals.netProfit;
     if (profit >= 0) {
       high = middle;
@@ -234,6 +251,7 @@ export const calculateOffer = (
   input: Partial<OfferState>,
   holidays: string[] = [],
   monthlyMarketPrices?: MonthlyMarketPrice[],
+  tariffVersions: TariffVersion[] = DEFAULT_TARIFF_VERSIONS,
 ): CalculationResult => {
   const state = normalizeOfferState(input);
   const parsed = offerStateSchema.safeParse(state);
@@ -242,6 +260,19 @@ export const calculateOffer = (
       state,
       parsed.error.issues.map((issue) => issue.message),
     );
+  const gesErrors = validateGesForDemo(state.ges);
+  if (gesErrors.length > 0) return invalidResult(state, gesErrors);
+  const tariffErrors = validateTariffPeriods(
+    state.customerType,
+    generateBillingPeriods(
+      state.usageStart,
+      state.usageEnd,
+      energyToMwh(state.monthlyConsumption, state.monthlyConsumptionUnit),
+    ),
+    tariffVersions,
+    state.tariffOverrides,
+  );
+  if (tariffErrors.length > 0) return invalidResult(state, tariffErrors);
   const marketPriceResolution = resolveForecastMarketPrices(
     listContractMonths(state.usageStart, state.usageEnd),
     monthlyMarketPrices,
@@ -250,8 +281,13 @@ export const calculateOffer = (
   );
   if (marketPriceResolution.errors.length > 0)
     return invalidResult(state, marketPriceResolution.errors, marketPriceResolution.values);
-  const core = calculateCore(state, holidays, marketPriceResolution.values);
-  const breakevenOfferRate = findBreakevenRate(state, holidays, marketPriceResolution.values);
+  const core = calculateCore(state, holidays, marketPriceResolution.values, tariffVersions);
+  const breakevenOfferRate = findBreakevenRate(
+    state,
+    holidays,
+    marketPriceResolution.values,
+    tariffVersions,
+  );
   const breakevenUnitPrice =
     core.totals.gridConsumptionMwh > 0
       ? (core.totals.activeEnergyBaseAmount / core.totals.gridConsumptionMwh) *
@@ -283,6 +319,9 @@ export const calculateOffer = (
     cashReconciliationDifference:
       sum(monthlyProfit, (row) => row.cashResult) - cashflowNetEffect(core.cashflow),
     marketPriceSnapshot: clone(marketPriceResolution.values),
+    reconciliationInstructions: clone(core.reconciliationInstructions ?? []),
+    endingCustomerAdvance: core.endingAdvance,
+    endingOpenReceivable: core.endingReceivable,
     totals: { ...core.totals, breakevenOfferRate, breakevenUnitPrice, customerAdvantage: 0 },
   };
   const referenceInvoice = calculateReferenceInvoice(
@@ -302,6 +341,7 @@ export const sensitivitySeries = (
   max = 20,
   step = 1,
   monthlyMarketPrices?: MonthlyMarketPrice[],
+  tariffVersions: TariffVersion[] = DEFAULT_TARIFF_VERSIONS,
 ) => {
   const series: Array<{
     offerRate: number;
@@ -321,6 +361,7 @@ export const sensitivitySeries = (
       { ...clone(state), offerRate: rate },
       holidays,
       marketPriceResolution.values,
+      tariffVersions,
     );
     const customerAdvantage = core.totals.gesSelfConsumptionSavings - core.totals.offerMargin;
     series.push({

@@ -44,6 +44,24 @@ export const appSettingsSchema = z.object({
   }),
   policyVersion: z.string().min(1),
   monthlyMarketPrices: monthlyMarketPricesSchema,
+  tariffVersions: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        customerType: z.string().min(1),
+        validFrom: z.iso.date(),
+        validTo: z.iso.date().optional(),
+        kdvRate: rate,
+        btvRate: rate,
+        distributionUnitTlMwh: nonNegative,
+        sourceLabel: z.string().min(1),
+        versionLabel: z.string().min(1),
+        active: z.boolean(),
+        updatedAt: z.string().min(1),
+      }),
+    )
+    .optional(),
+  lastBackupAt: z.string().optional(),
 });
 
 export const gesSettingsSchema = z
@@ -59,7 +77,9 @@ export const gesSettingsSchema = z
     priceType: z.enum(['regulated', 'ptf', 'ptf_yekdem', 'manual']).optional(),
     nettingMethod: z.enum(['monthly', 'hourly', 'manual']).optional(),
     excessProductionTaxMode: z.enum(['manual', 'no_tax_in_demo']).optional(),
+    manualTaxAmountTl: nonNegative.optional(),
     settlementMode: z.enum(['cash_outflow', 'invoice_offset']).optional(),
+    excessPurchasePaymentOffsetDays: z.number().int().nonnegative().optional(),
   })
   .superRefine((value, context) => {
     if (
@@ -189,6 +209,17 @@ export const offerStateSchema = z
     btvDueOffset: z.number().int(),
     ges: gesSettingsSchema,
     paymentPlan: paymentPlanSchema,
+    tariffOverrides: z
+      .array(
+        z.object({
+          month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+          kdvRate: rate,
+          btvRate: rate,
+          distributionUnitTlMwh: nonNegative,
+          reason: z.string(),
+        }),
+      )
+      .optional(),
   })
   .refine((state) => state.usageEnd >= state.usageStart, {
     path: ['usageEnd'],

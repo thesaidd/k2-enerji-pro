@@ -1,7 +1,9 @@
 import { generateBillingPeriods } from '../calendar/calendar';
 import { energyToMwh } from '../consumption/conversions';
 import { calculateGesPeriod } from '../ges/ges';
-import type { BillingPeriod, MarketPriceSnapshot, OfferState } from '../../types';
+import { DEFAULT_TARIFF_VERSIONS } from '../../config/tariffs';
+import { resolveTariffForPeriod } from '../tariff/tariff';
+import type { BillingPeriod, MarketPriceSnapshot, OfferState, TariffVersion } from '../../types';
 
 export interface InvoiceModel {
   periods: BillingPeriod[];
@@ -11,11 +13,39 @@ export interface InvoiceModel {
 export const calculateInvoices = (
   state: OfferState,
   marketPrices?: MarketPriceSnapshot[],
+  tariffVersions: TariffVersion[] = DEFAULT_TARIFF_VERSIONS,
 ): InvoiceModel => {
   const monthlyMwh = energyToMwh(state.monthlyConsumption, state.monthlyConsumptionUnit);
   const seeds = generateBillingPeriods(state.usageStart, state.usageEnd, monthlyMwh);
   const offerRate = state.offerRate ?? 0;
   const periods = seeds.map<BillingPeriod>((seed, index) => {
+    const tariffResolution = resolveTariffForPeriod(
+      state.customerType,
+      seed.start,
+      seed.end,
+      tariffVersions,
+      state.tariffOverrides,
+    );
+    if (!tariffResolution.snapshot) throw new Error(tariffResolution.error);
+    const resolvedTariff = tariffResolution.snapshot;
+    const hasExplicitPeriodOverride = state.tariffOverrides?.some(
+      (override) => override.month === seed.start.slice(0, 7),
+    );
+    const hasLegacyNumericOverride =
+      !hasExplicitPeriodOverride &&
+      (Math.abs(state.kdvRate - resolvedTariff.kdvRate) > 1e-9 ||
+        Math.abs(state.btvRate - resolvedTariff.btvRate) > 1e-9 ||
+        Math.abs(state.distributionUnitTlMwh - resolvedTariff.distributionUnitTlMwh) > 1e-9);
+    const tariff = hasLegacyNumericOverride
+      ? {
+          ...resolvedTariff,
+          kdvRate: state.kdvRate,
+          btvRate: state.btvRate,
+          distributionUnitTlMwh: state.distributionUnitTlMwh,
+          manualOverride: true,
+          overrideReason: 'Legacy snapshot — dönemsel tarife metadata’sı bulunmuyor.',
+        }
+      : resolvedTariff;
     const marketPriceMonth = seed.start.slice(0, 7);
     const marketPrice = marketPrices?.find((item) => item.month === marketPriceMonth) ?? {
       month: marketPriceMonth,
@@ -46,12 +76,12 @@ export const calculateInvoices = (
         ? activeEnergySalesAmount / ges.gridConsumptionMwh
         : (marketPrice.ptfUnitPrice + marketPrice.yekdemUnitPrice) * (1 + offerRate / 100);
     const distributionAmount = state.hasDistribution
-      ? ges.gridConsumptionMwh * state.distributionUnitTlMwh
+      ? ges.gridConsumptionMwh * tariff.distributionUnitTlMwh
       : 0;
     const btvBase = activeEnergySalesAmount;
-    const btvAmount = (btvBase * state.btvRate) / 100;
+    const btvAmount = (btvBase * tariff.btvRate) / 100;
     const kdvBase = activeEnergySalesAmount + distributionAmount + periodContractPower + btvAmount;
-    const kdvAmount = (kdvBase * state.kdvRate) / 100;
+    const kdvAmount = (kdvBase * tariff.kdvRate) / 100;
     const grossInvoice =
       activeEnergySalesAmount + distributionAmount + periodContractPower + btvAmount + kdvAmount;
     const gesSelfConsumptionSavings = ges.selfConsumptionMwh * activeEnergyUnitPrice;
@@ -85,6 +115,7 @@ export const calculateInvoices = (
       yekdemUnitPrice: marketPrice.yekdemUnitPrice,
       ptfPriceSource: marketPrice.ptfPriceSource,
       yekdemPriceSource: marketPrice.yekdemPriceSource,
+      tariffSnapshot: tariff,
     };
   });
   const excessProductionPurchase = periods.reduce(

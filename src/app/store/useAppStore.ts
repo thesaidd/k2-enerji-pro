@@ -147,10 +147,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       referenceState,
       get().settings.holidays,
       get().settings.monthlyMarketPrices,
+      get().settings.tariffVersions,
     );
     const onlyMarketPricesMissing =
       result.errors[0] === 'Aşağıdaki dönemlerin piyasa tahmini eksik:';
-    if (!result.valid && !onlyMarketPricesMissing) {
+    const tariffDraftError =
+      result.errors.length > 0 &&
+      result.errors.every((error) =>
+        /tarife|override nedeni/i.test(error),
+      );
+    if (!result.valid && !onlyMarketPricesMissing && !tariffDraftError) {
       set({ saveStatus: 'error' });
       throw new Error(result.errors.join(' '));
     }
@@ -195,6 +201,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       state,
       get().settings.holidays,
       get().settings.monthlyMarketPrices,
+      get().settings.tariffVersions,
     );
     if (!result.valid) {
       set({ saveStatus: 'error' });

@@ -116,6 +116,12 @@ export function OfferDetailPage() {
           {warning}
         </div>
       ))}
+      {result.periods.some((period) => !period.tariffSnapshot) && (
+        <div className="notice warning">
+          Legacy snapshot — tarife kaynak metadata’sı bulunmuyor. Kayıtlı sayısal değerler yeniden
+          hesaplanmadan korunur.
+        </div>
+      )}
       <section className="metric-grid four">
         <MetricCard
           label="Brüt müşteri faturası"
@@ -162,6 +168,7 @@ export function OfferDetailPage() {
                   <th>Dağıtım</th>
                   <th>KDV</th>
                   <th>Brüt</th>
+                  <th>Tarife kaynağı</th>
                 </tr>
               </thead>
               <tbody>
@@ -189,6 +196,18 @@ export function OfferDetailPage() {
                     <td>{formatMoney(period.kdvAmount)}</td>
                     <td>
                       <strong>{formatMoney(period.grossInvoice)}</strong>
+                    </td>
+                    <td>
+                      {period.tariffSnapshot ? (
+                        <>
+                          {period.tariffSnapshot.sourceLabel} · {period.tariffSnapshot.versionLabel}
+                          <small>
+                            {period.tariffSnapshot.manualOverride
+                              ? 'Manuel override'
+                              : `${period.tariffSnapshot.validFrom ?? ''} – ${period.tariffSnapshot.validTo ?? 'açık'}`}
+                          </small>
+                        </>
+                      ) : 'Legacy metadata yok'}
                     </td>
                   </tr>
                 ))}
@@ -226,6 +245,41 @@ export function OfferDetailPage() {
             </div>
           </dl>
         </aside>
+      </section>
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">MUTABAKAT TALİMATLARI</span>
+            <h2>Fazla ve eksik ödeme davranışı</h2>
+          </div>
+          <StatusBadge tone="info">
+            {`${(result.reconciliationInstructions ?? []).length} talimat`}
+          </StatusBadge>
+        </div>
+        {(result.reconciliationInstructions ?? []).length === 0 ? (
+          <p className="muted">Bu teklif için otomatik mutabakat talimatı oluşmadı.</p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Dönem</th><th>Tür</th><th>Tutar</th><th>Planlanan tarih</th><th>Açıklama</th></tr></thead>
+              <tbody>
+                {(result.reconciliationInstructions ?? []).map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.periodId}</td>
+                    <td>{item.type}</td>
+                    <td>{formatMoney(item.amount)}</td>
+                    <td>{formatDate(item.scheduledDate ?? item.referenceDate)}</td>
+                    <td>{item.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="muted">
+          Sözleşme sonu açık alacak {formatMoney(result.endingOpenReceivable ?? 0)} · müşteri avansı{' '}
+          {formatMoney(result.endingCustomerAdvance ?? 0)}
+        </p>
       </section>
       <section className="panel">
         <div className="panel-heading">

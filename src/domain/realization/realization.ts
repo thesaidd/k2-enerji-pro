@@ -187,11 +187,35 @@ export const calculateRealization = (
     );
   });
   const sourceInstallments = buildReceivableInstallments(adjustedPeriods, source.plannedPayments);
-  const receivableLedger = allocatePaymentsToReceivables(
+  const baseReceivableLedger = allocatePaymentsToReceivables(
     sourceInstallments,
     scenario.actualPayments,
     scenario.asOfDate,
   );
+  const effectiveRefunds = [...(scenario.actualRefunds ?? [])]
+    .filter((refund) => refund.date <= scenario.asOfDate && refund.amount > 0)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  let refundedAdvance = 0;
+  for (const refund of effectiveRefunds) {
+    const ledgerAtRefundDate = allocatePaymentsToReceivables(
+      sourceInstallments,
+      scenario.actualPayments,
+      refund.date,
+    );
+    const availableAdvance = ledgerAtRefundDate.customerAdvance - refundedAdvance;
+    if (refund.amount > availableAdvance + 1e-6)
+      throw new Error(
+        `Gerçek müşteri iadesi kullanılabilir müşteri avansını aşamaz. Kullanılabilir: ${Math.max(
+          0,
+          availableAdvance,
+        ).toFixed(2)} TL.`,
+      );
+    refundedAdvance += refund.amount;
+  }
+  const receivableLedger = {
+    ...baseReceivableLedger,
+    customerAdvance: Math.max(0, baseReceivableLedger.customerAdvance - refundedAdvance),
+  };
   const effectivePayments = scenario.actualPayments.filter(
     (payment) => payment.date <= scenario.asOfDate && payment.amount > 0,
   );
@@ -223,6 +247,16 @@ export const calculateRealization = (
       note: payment.note,
     };
   });
+  const actualRefundEvents: CashEvent[] = effectiveRefunds.map((refund) => ({
+    id: refund.id,
+    date: refund.date,
+    type: 'customer_refund',
+    direction: 'out',
+    amount: refund.amount,
+    periodId: refund.sourcePeriodId,
+    label: 'Gerçek müşteri iadesi',
+    note: refund.note,
+  }));
   const actualExcessProductionPurchase = sum(
     adjustedPeriods,
     (period) => period.excessPurchaseAmount ?? 0,
@@ -233,7 +267,7 @@ export const calculateRealization = (
     actualExcessProductionPurchase,
     holidays,
   ).filter((event) => event.date <= scenario.asOfDate);
-  const actualCashEvents = [...supplierEvents, ...actualPaymentEvents].sort((a, b) =>
+  const actualCashEvents = [...supplierEvents, ...actualPaymentEvents, ...actualRefundEvents].sort((a, b) =>
     a.date.localeCompare(b.date),
   );
   const effectiveCreditRate = scenario.financingOverrides?.creditRate ?? state.creditRate;
@@ -405,6 +439,7 @@ export const calculateRealization = (
       ...(legacyGesUsed ? [LEGACY_GES_WARNING] : []),
       ...new Set(periods.flatMap((period) => period.marketPriceWarnings ?? [])),
     ],
+    actualRefundTotal: refundedAdvance,
   };
 };
 
@@ -425,6 +460,7 @@ export const createRealizationScenario = (
     asOfDate: sourceOffer.stateSnapshot.usageEnd,
     periodOverrides: [],
     actualPayments: [],
+    actualRefunds: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -435,3 +471,5 @@ export const createRealizationScenario = (
 };
 
 export const newActualPaymentId = (): string => createId('actual_payment');
+
+export const newActualRefundId = (): string => createId('actual_refund');
