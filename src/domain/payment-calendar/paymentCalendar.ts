@@ -48,13 +48,10 @@ const plannedLedger = (
   const installments = buildReceivableInstallments(
     offer.resultSnapshot.periods,
     offer.resultSnapshot.plannedPayments,
+    offer.resultSnapshot.reconciliationInstructions ?? [],
   );
   const payments: ActualPayment[] = offer.resultSnapshot.plannedPayments.map((payment) => ({
     id: payment.id,
-    invoiceId: payment.periodId,
-    receivableInstallmentId: installments.find(
-      (installment) => installment.sourcePlannedPaymentId === payment.id,
-    )?.id,
     date: payment.transactionDate,
     amount: payment.principalAmount,
     channel: payment.paymentChannel,
@@ -64,7 +61,12 @@ const plannedLedger = (
     .sort()
     .at(-1)!;
   return {
-    ledger: allocatePaymentsToReceivables(installments, payments, asOfDate),
+    ledger: allocatePaymentsToReceivables(installments, payments, asOfDate, {
+      autoApplyAdvance:
+        offer.paymentPlanSnapshot.reconciliation.enabled &&
+        (offer.paymentPlanSnapshot.reconciliation.overpaymentAction === 'carry_forward' ||
+          offer.paymentPlanSnapshot.reconciliation.overpaymentAction === 'refund_at_contract_end'),
+    }),
     payments,
   };
 };
@@ -107,24 +109,44 @@ const receivableBalances = (
   payments: ActualPayment[],
   refunds: CashEvent[],
 ): { customerAdvance: number; openReceivable: number } => {
-  let customerAdvance = 0;
   let openReceivable = 0;
   for (const installment of installments) {
     const allocated = sum(
       installment.allocations.filter((allocation) => allocation.date <= date),
       (allocation) => allocation.amount,
     );
-    if (date < installment.dueDate) customerAdvance += allocated;
-    else openReceivable += Math.max(0, installment.principalAmount - allocated);
-  }
-  for (const payment of payments.filter((item) => item.date <= date)) {
-    const allocated = sum(
-      ledger.allocations.filter(
-        (allocation) => allocation.paymentId === payment.id && allocation.date <= date,
+    const advanceApplied = sum(
+      (installment.advanceApplications ?? []).filter(
+        (application) => application.applicationDate <= date,
       ),
-      (allocation) => allocation.amount,
+      (application) => application.amount,
     );
-    customerAdvance += Math.max(0, payment.amount - allocated);
+    if (date >= installment.dueDate)
+      openReceivable += Math.max(0, installment.principalAmount - allocated - advanceApplied);
+  }
+  const advanceLots = ledger.advanceLots ?? [];
+  let customerAdvance = sum(
+    advanceLots.filter((lot) => lot.availableDate <= date),
+    (lot) =>
+      Math.max(
+        0,
+        lot.originalAmount -
+          sum(
+            lot.applications.filter((application) => application.applicationDate <= date),
+            (application) => application.amount,
+          ),
+      ),
+  );
+  if (advanceLots.length === 0) {
+    for (const payment of payments.filter((item) => item.date <= date)) {
+      const allocated = sum(
+        ledger.allocations.filter(
+          (allocation) => allocation.paymentId === payment.id && allocation.date <= date,
+        ),
+        (allocation) => allocation.amount,
+      );
+      customerAdvance += Math.max(0, payment.amount - allocated);
+    }
   }
   const refunded = sum(
     refunds.filter((event) => event.date <= date),
@@ -285,6 +307,11 @@ export const buildPlannedPaymentCalendar = (
       `Planlanan mutabakat · ${item.note} · ${item.amount.toFixed(2)} TL`,
     ]);
   }
+  for (const application of ledger.advanceApplications ?? [])
+    annotations.set(application.applicationDate, [
+      ...(annotations.get(application.applicationDate) ?? []),
+      `Müşteri avansı faturaya uygulandı · ${application.amount.toFixed(2)} TL · nakit değildir`,
+    ]);
   return buildModel({
     sourceType: 'planned_offer',
     sourceId: offer.id,
@@ -346,6 +373,11 @@ export const buildRealizationPaymentCalendar = (
       `Planlanan mutabakat (gerçekleşmiş sayılmaz) · ${item.note} · ${item.amount.toFixed(2)} TL`,
     ]);
   }
+  for (const application of result.receivableLedger.advanceApplications ?? [])
+    annotations.set(application.applicationDate, [
+      ...(annotations.get(application.applicationDate) ?? []),
+      `Gerçek müşteri avansı faturaya uygulandı · ${application.amount.toFixed(2)} TL · nakit değildir`,
+    ]);
   for (const document of result.lateFeeDocuments)
     annotations.set(document.issueDate, [
       ...(annotations.get(document.issueDate) ?? []),

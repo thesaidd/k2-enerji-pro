@@ -76,6 +76,10 @@ export const applyPlannedReconciliation = (
   let advance = 0;
   let carriedReceivable = 0;
   let openReceivable = 0;
+  const autoApplyAdvance =
+    settings.enabled &&
+    (settings.overpaymentAction === 'carry_forward' ||
+      settings.overpaymentAction === 'refund_at_contract_end');
 
   for (const period of periods) {
     const openingReceivable = carriedReceivable;
@@ -92,7 +96,7 @@ export const applyPlannedReconciliation = (
     }
 
     let targetPrincipal = period.grossInvoice + openingReceivable;
-    const advanceApplied = Math.min(advance, targetPrincipal);
+    const advanceApplied = autoApplyAdvance ? Math.min(advance, targetPrincipal) : 0;
     if (advanceApplied > EPSILON) {
       advance -= advanceApplied;
       targetPrincipal -= advanceApplied;
@@ -117,15 +121,31 @@ export const applyPlannedReconciliation = (
     const reference = referenceDate(period, settings, usageEnd);
 
     if (difference > EPSILON) {
-      if (!settings.enabled || settings.overpaymentAction === 'carry_forward') {
+      if (!settings.enabled) {
         advance += difference;
+        warnings.push(
+          `${period.id} döneminde ${difference.toFixed(2)} TL müşteri avansı tutuldu; mutabakat kapalı olduğu için sonraki döneme otomatik uygulanmadı.`,
+        );
+      } else if (
+        settings.overpaymentAction === 'carry_forward' ||
+        settings.overpaymentAction === 'refund_at_contract_end'
+      ) {
+        advance += difference;
+        const targetPeriod = periods.find((candidate) => candidate.index === period.index + 1);
         instructions.push(
           instruction(
             period,
             'carry_advance_forward',
             difference,
             reference,
-            'Dönem fazla ödemesi sonraki dönemin müşteri avansına taşındı.',
+            settings.overpaymentAction === 'carry_forward'
+              ? 'Dönem fazla ödemesi sonraki dönem faturasına uygulanmak üzere müşteri avansına taşındı.'
+              : 'Dönem fazla ödemesi gelecekteki faturalara uygulanır; sözleşme sonunda yalnız kalan avans iade edilir.',
+            {
+              sourcePeriodId: period.id,
+              targetPeriodId: targetPeriod?.id,
+              applicationDate: targetPeriod?.invoiceDate,
+            },
           ),
         );
       } else if (settings.overpaymentAction === 'refund_after_days') {
@@ -147,17 +167,6 @@ export const applyPlannedReconciliation = (
           instruction(period, 'refund_customer', difference, reference, 'Fazla ödeme iade edilir.', {
             scheduledDate,
           }),
-        );
-      } else {
-        advance += difference;
-        instructions.push(
-          instruction(
-            period,
-            'carry_advance_forward',
-            difference,
-            reference,
-            'Fazla ödeme sözleşme sonu iadesine kadar müşteri avansı olarak tutulur.',
-          ),
         );
       }
     } else if (difference < -EPSILON) {
@@ -209,6 +218,14 @@ export const applyPlannedReconciliation = (
         );
       } else if (settings.underpaymentAction === 'carry_to_next_invoice') {
         if (period.index < periods.length) {
+          const targetPeriod = periods.find((candidate) => candidate.index === period.index + 1)!;
+          const targetPayments = sourcePayments
+            .filter((payment) => payment.periodId === targetPeriod.id)
+            .sort(
+              (a, b) =>
+                a.transactionDate.localeCompare(b.transactionDate) || a.id.localeCompare(b.id),
+            );
+          const applicationDate = targetPayments.at(-1)?.transactionDate ?? targetPeriod.invoiceDate;
           carriedReceivable = shortage;
           instructions.push(
             instruction(
@@ -217,6 +234,11 @@ export const applyPlannedReconciliation = (
               shortage,
               reference,
               'Dönem eksik ödemesi sonraki dönem hedef anaparasına taşındı.',
+              {
+                sourcePeriodId: period.id,
+                targetPeriodId: targetPeriod.id,
+                applicationDate,
+              },
             ),
           );
         } else {

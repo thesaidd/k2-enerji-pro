@@ -242,11 +242,36 @@ export interface ReconciliationInstruction {
   referenceDate: ISODate;
   scheduledDate?: ISODate;
   amount: number;
+  sourcePeriodId?: string;
+  targetPeriodId?: string;
+  applicationDate?: ISODate;
   paymentChannel?: PaymentChannel;
   commissionRate?: number;
   commissionBearer?: CommissionBearer;
   source: 'planned';
   note: string;
+}
+
+export interface AdvanceApplication {
+  id: string;
+  advanceLotId: string;
+  sourcePaymentId: string;
+  sourcePeriodId?: string;
+  targetInvoiceId: string;
+  targetPeriodId: string;
+  applicationDate: ISODate;
+  amount: number;
+}
+
+export interface CustomerAdvanceLot {
+  id: string;
+  sourcePaymentId: string;
+  sourcePeriodId?: string;
+  availableDate: ISODate;
+  originalAmount: number;
+  appliedAmount: number;
+  remainingAmount: number;
+  applications: AdvanceApplication[];
 }
 
 export interface CashEvent {
@@ -496,12 +521,17 @@ export interface ReceivableInstallment {
   invoiceId: string;
   periodId: string;
   periodIndex: number;
+  invoiceDate?: ISODate;
+  carriedToPeriodId?: string;
+  carriedApplicationDate?: ISODate;
   sourcePlannedPaymentId?: string;
   principalAmount: number;
   dueDate: ISODate;
   collectedAmount: number;
+  advanceAppliedAmount?: number;
   outstandingPrincipal: number;
   allocations: ReceivablePaymentAllocation[];
+  advanceApplications?: AdvanceApplication[];
 }
 
 export interface ReceivableLedger {
@@ -510,8 +540,11 @@ export interface ReceivableLedger {
   allocations: ReceivablePaymentAllocation[];
   totalPaymentsAsOf: number;
   totalCollectedPrincipal: number;
+  totalAdvanceApplied: number;
   totalOutstandingPrincipal: number;
   customerAdvance: number;
+  advanceLots: CustomerAdvanceLot[];
+  advanceApplications: AdvanceApplication[];
 }
 
 export interface PeriodRealizationOverride {

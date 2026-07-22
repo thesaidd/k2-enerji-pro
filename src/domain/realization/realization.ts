@@ -186,11 +186,21 @@ export const calculateRealization = (
       },
     );
   });
-  const sourceInstallments = buildReceivableInstallments(adjustedPeriods, source.plannedPayments);
+  const reconciliation = state.paymentPlan.reconciliation;
+  const autoApplyAdvance =
+    reconciliation.enabled &&
+    (reconciliation.overpaymentAction === 'carry_forward' ||
+      reconciliation.overpaymentAction === 'refund_at_contract_end');
+  const sourceInstallments = buildReceivableInstallments(
+    adjustedPeriods,
+    source.plannedPayments,
+    source.reconciliationInstructions ?? [],
+  );
   const baseReceivableLedger = allocatePaymentsToReceivables(
     sourceInstallments,
     scenario.actualPayments,
     scenario.asOfDate,
+    { autoApplyAdvance },
   );
   const effectiveRefunds = [...(scenario.actualRefunds ?? [])]
     .filter((refund) => refund.date <= scenario.asOfDate && refund.amount > 0)
@@ -201,6 +211,7 @@ export const calculateRealization = (
       sourceInstallments,
       scenario.actualPayments,
       refund.date,
+      { autoApplyAdvance },
     );
     const availableAdvance = ledgerAtRefundDate.customerAdvance - refundedAdvance;
     if (refund.amount > availableAdvance + 1e-6)
