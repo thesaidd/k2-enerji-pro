@@ -19,6 +19,8 @@ import {
   X,
 } from 'lucide-react';
 import { useAppStore } from '../../app/store/useAppStore';
+import { CALCULATION_POLICY_VERSION } from '../../config/calculationPolicy';
+import { APP_VERSION, DEMO_PRODUCT_NAME } from '../../config/release';
 import { ToastRegion } from '../feedback/ToastRegion';
 import { SaveStatus } from './SaveStatus';
 
@@ -58,7 +60,7 @@ export function AppLayout() {
           <span className="brand-mark">K2</span>
           <div>
             <strong>ENERJİPRO</strong>
-            <small>Maliyet & teklif zekâsı</small>
+            <small>3.0 · Demo</small>
           </div>
           <button
             className="icon-button mobile-close"
@@ -77,8 +79,8 @@ export function AppLayout() {
           ))}
         </nav>
         <div className="sidebar-foot">
-          <span>3.0</span>
-          <small>Politika: K2-3.0.0</small>
+          <span>v{APP_VERSION}</span>
+          <small>Politika: {CALCULATION_POLICY_VERSION}</small>
         </div>
       </aside>
       <div className="app-main">
@@ -110,6 +112,10 @@ export function AppLayout() {
             {settings.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             <span>{settings.theme === 'dark' ? 'Açık tema' : 'Koyu tema'}</span>
           </button>
+        </div>
+        <div className="demo-banner">
+          <strong>{DEMO_PRODUCT_NAME}</strong>
+          <span>Yerel tarayıcı verisi kullanır. Resmî fatura veya muhasebe sistemi değildir.</span>
         </div>
         <main className="content">
           <Outlet />

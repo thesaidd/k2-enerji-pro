@@ -1981,6 +1981,33 @@ td small {
 .policy-card .eyebrow {
   color: #8dd5c2;
 }
+
+.demo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 8px 34px;
+  border-bottom: 1px solid color-mix(in srgb, var(--gold) 35%, var(--line));
+  color: var(--ink);
+  background: color-mix(in srgb, var(--gold) 10%, var(--surface));
+  font-size: 0.72rem;
+}
+
+.demo-banner span {
+  color: var(--muted);
+}
+
+.demo-limits {
+  columns: 2;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.demo-limits li {
+  margin-bottom: 8px;
+  break-inside: avoid;
+}
 .policy-card p {
   margin-bottom: 0;
   color: #bfdad3;
@@ -2255,6 +2282,10 @@ td small {
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
   :root,
   :root[data-theme='dark'] {
     --surface: #fff;
@@ -2270,6 +2301,7 @@ td small {
   }
   .sidebar,
   .topbar,
+  .demo-banner,
   .no-print,
   .toast-region,
   .wizard-nav {
@@ -2287,8 +2319,7 @@ td small {
     margin-bottom: 16px;
   }
   .panel,
-  .metric-card,
-  .report-paper {
+  .metric-card {
     break-inside: avoid;
     box-shadow: none;
   }
@@ -2296,9 +2327,21 @@ td small {
     max-width: none;
     padding: 0;
     border: 0;
+    break-inside: auto;
+    font-size: 11px;
+  }
+  .report-paper > header,
+  .report-paper h2 {
+    break-after: avoid-page;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    break-inside: avoid;
   }
   table {
-    font-size: 9px;
+    font-size: 10px;
   }
   th,
   td {
