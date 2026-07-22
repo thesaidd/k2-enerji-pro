@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="generator" content="docs/user-guide/build-guide.mjs">
+  <title>K2 EnerjiPro 3.0.3 — Kullanıcı Rehberi</title>
+  <style>
+    :root { color-scheme: light; --ink: #18212f; --muted: #5d6878; --line: #d9e0e8; --soft: #f3f7fa; --brand: #124e78; --accent: #f5a623; }
+    @page { size: A4; margin: 18mm 16mm 18mm; @top-left { content: "K2 EnerjiPro 3.0.3 · Demo"; color: #667386; font: 8pt Arial, sans-serif; } @top-right { content: "Kullanıcı Rehberi"; color: #667386; font: 8pt Arial, sans-serif; } @bottom-center { content: "K2 EnerjiPro 3.0.3 · Kullanıcı Rehberi  |  " counter(page) " / " counter(pages); color: #667386; font: 8pt Arial, sans-serif; } }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0 auto; max-width: 210mm; color: var(--ink); background: white; font: 10.3pt/1.52 Arial, "Segoe UI", sans-serif; }
+    main { padding: 0; }
+    .cover { min-height: 245mm; display: flex; flex-direction: column; justify-content: center; text-align: center; page-break-after: always; break-after: page; }
+    .cover .eyebrow { color: var(--brand); font-size: 11pt; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    .cover h1 { margin: 10mm 0 2mm; border: 0; color: var(--ink); font-size: 29pt; line-height: 1.08; }
+    .cover h2 { margin: 0 0 8mm; color: var(--brand); font-size: 20pt; }
+    .cover .meta { color: var(--muted); font-size: 10.5pt; }
+    .cover .notice { margin: 8mm auto 6mm; max-width: 165mm; padding: 4mm 6mm; border-left: 4px solid var(--accent); background: #fff7e8; text-align: left; }
+    .cover img { width: 162mm; max-height: 92mm; object-fit: contain; border: 1px solid var(--line); border-radius: 3mm; box-shadow: 0 2mm 7mm rgba(21, 40, 58, .12); }
+    .document-control { margin: 0 0 8mm; padding: 4mm 5mm; border: 1px solid var(--line); background: var(--soft); color: var(--muted); font-size: 9pt; }
+    h1, h2, h3, h4 { break-after: avoid-page; page-break-after: avoid; }
+    h2 { margin: 10mm 0 3mm; padding-bottom: 2mm; border-bottom: 1.5px solid var(--brand); color: var(--brand); font-size: 17pt; }
+    h3 { margin: 7mm 0 2mm; color: #233b54; font-size: 13pt; }
+    h4 { margin: 5mm 0 1.5mm; color: #32465c; font-size: 11pt; }
+    p { margin: 0 0 3.5mm; orphans: 3; widows: 3; }
+    a { color: var(--brand); text-decoration: none; }
+    ul, ol { margin: 1.5mm 0 4mm 6mm; padding-left: 5mm; }
+    li { margin: 0 0 1.6mm; }
+    blockquote { margin: 4mm 0; padding: 3mm 5mm; border-left: 4px solid var(--accent); background: #fff8eb; color: #3a4655; break-inside: avoid; }
+    code { padding: .2mm 1mm; border-radius: 1mm; background: #edf2f6; font: 9pt Consolas, monospace; }
+    pre { overflow-wrap: anywhere; white-space: pre-wrap; padding: 4mm; border: 1px solid var(--line); background: #18212f; color: #f6f8fb; break-inside: avoid; }
+    pre code { padding: 0; background: transparent; color: inherit; }
+    hr { margin: 8mm 0; border: 0; border-top: 1px solid var(--line); }
+    figure { margin: 5mm 0 7mm; text-align: center; break-inside: avoid-page; page-break-inside: avoid; }
+    figure img { display: block; width: 100%; max-height: 163mm; margin: 0 auto; object-fit: contain; border: 1px solid var(--line); border-radius: 2mm; box-shadow: 0 1.5mm 5mm rgba(21, 40, 58, .11); }
+    figcaption { margin-top: 2mm; color: var(--muted); font-size: 8.8pt; font-style: italic; }
+    .table-wrap { margin: 3mm 0 5mm; }
+    table { width: 100%; border-collapse: collapse; font-size: 8.9pt; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
+    th, td { padding: 2mm 2.4mm; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #dfeef7; color: #193950; font-weight: 700; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    .toc { columns: 2; column-gap: 10mm; margin-bottom: 8mm; }
+    .toc li { break-inside: avoid; margin-bottom: 1.5mm; list-style: none; }
+    .toc-level-3 { padding-left: 4mm; font-size: 9pt; }
+    .checkbox { display: inline-block; width: 3.5mm; height: 3.5mm; margin-right: 2mm; border: 1px solid #607086; line-height: 3.2mm; text-align: center; }
+    .checkbox.checked { background: var(--brand); color: white; }
+    .task { list-style: none; margin-left: -5mm; }
+    .page-break { break-before: page; page-break-before: always; }
+    @media screen { body { padding: 12mm 16mm; box-shadow: 0 0 18px rgba(21, 40, 58, .16); } }
+    @media print { body { max-width: none; } a { color: inherit; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="cover">
+      <div class="eyebrow">Kanıtlı demo dokümantasyonu</div>
+      <h1>K2 EnerjiPro 3.0.3</h1>
+      <h2>Kullanıcı Rehberi</h2>
+      <div class="meta"><strong>Demo sürümü</strong><br>22 Temmuz 2026<br>Satış · Finans · Risk · Teklif ekipleri</div>
+      <div class="notice">K2 EnerjiPro 3.0.3 demo sürümü resmî fatura veya muhasebe sistemi değildir. Sonuçlar karar desteği ve ürün demosu amacıyla kullanılmalıdır.</div>
+      <img src="screenshots/01-dashboard-empty.png" alt="Boş başlangıç gösterge paneli">
+    </section>
+    <section class="document-control">
+      <strong>Belge kaynağı:</strong> K2_EnerjiPro_3.0.3_Kullanici_Rehberi.md ·
+      <strong>Uygulama:</strong> 3.0.3 · <strong>Hesaplama politikası:</strong> K2-ENERJIPRO-3.0.0 ·
+      <strong>Backup schema:</strong> v2
+    </section>
+    <section>
+      <h2>İçindekiler</h2>
+      <ol class="toc"><li class="toc-level-2"><a href="#belge-bilgileri">Belge bilgileri</a></li>
+<li class="toc-level-2"><a href="#dogrulanmis-uygulama-envanteri">Doğrulanmış uygulama envanteri</a></li>
+<li class="toc-level-2"><a href="#1-k2-enerjipro-nedir">1. K2 EnerjiPro nedir?</a></li>
+<li class="toc-level-2"><a href="#2-demo-surumunun-sinirlari">2. Demo sürümünün sınırları</a></li>
+<li class="toc-level-2"><a href="#3-uygulamayi-baslatma">3. Uygulamayı başlatma</a></li>
+<li class="toc-level-3"><a href="#3-1-gelistirici-yontemi">3.1 Geliştirici yöntemi</a></li>
+<li class="toc-level-3"><a href="#3-2-hazir-build-yontemi">3.2 Hazır build yöntemi</a></li>
+<li class="toc-level-2"><a href="#4-ilk-acilis">4. İlk açılış</a></li>
+<li class="toc-level-2"><a href="#5-demo-verisini-yukleme">5. Demo verisini yükleme</a></li>
+<li class="toc-level-2"><a href="#6-ekran-ve-menu-yapisi">6. Ekran ve menü yapısı</a></li>
+<li class="toc-level-2"><a href="#7-musteri-olusturma">7. Müşteri oluşturma</a></li>
+<li class="toc-level-2"><a href="#8-yeni-teklif-hazirlama">8. Yeni teklif hazırlama</a></li>
+<li class="toc-level-3"><a href="#8-1-tuketim-ve-teknik-bilgiler">8.1 Tüketim ve teknik bilgiler</a></li>
+<li class="toc-level-3"><a href="#8-2-maliyet-girdileri">8.2 Maliyet girdileri</a></li>
+<li class="toc-level-3"><a href="#8-3-ges-alanlari">8.3 GES alanları</a></li>
+<li class="toc-level-3"><a href="#8-4-odeme-plani">8.4 Ödeme planı</a></li>
+<li class="toc-level-3"><a href="#8-5-basabas-ve-teklif">8.5 Başabaş ve teklif</a></li>
+<li class="toc-level-2"><a href="#9-teklif-hesaplama-mantigi">9. Teklif hesaplama mantığı</a></li>
+<li class="toc-level-3"><a href="#9-1-aktif-enerji">9.1 Aktif enerji</a></li>
+<li class="toc-level-3"><a href="#9-2-btv">9.2 BTV</a></li>
+<li class="toc-level-3"><a href="#9-3-kdv">9.3 KDV</a></li>
+<li class="toc-level-2"><a href="#10-tarife-katalogu">10. Tarife kataloğu</a></li>
+<li class="toc-level-2"><a href="#11-aylik-ptf-ve-yekdem">11. Aylık PTF ve YEKDEM</a></li>
+<li class="toc-level-2"><a href="#12-odeme-planlari">12. Ödeme planları</a></li>
+<li class="toc-level-3"><a href="#gelismis-satir-alanlari">Gelişmiş satır alanları</a></li>
+<li class="toc-level-2"><a href="#13-mutabakat">13. Mutabakat</a></li>
+<li class="toc-level-3"><a href="#mutabakat-kapali">Mutabakat kapalı</a></li>
+<li class="toc-level-3"><a href="#fazla-odeme-secenekleri">Fazla ödeme seçenekleri</a></li>
+<li class="toc-level-3"><a href="#eksik-odeme-secenekleri">Eksik ödeme seçenekleri</a></li>
+<li class="toc-level-3"><a href="#basit-ornekler">Basit örnekler</a></li>
+<li class="toc-level-2"><a href="#14-finansman">14. Finansman</a></li>
+<li class="toc-level-2"><a href="#15-ges">15. GES</a></li>
+<li class="toc-level-2"><a href="#16-teklifi-kaydetme-ve-finallestirme">16. Teklifi kaydetme ve finalleştirme</a></li>
+<li class="toc-level-2"><a href="#17-teklif-detayi">17. Teklif Detayı</a></li>
+<li class="toc-level-2"><a href="#18-gerceklesme-senaryosu">18. Gerçekleşme senaryosu</a></li>
+<li class="toc-level-3"><a href="#gercek-tahsilat">Gerçek tahsilat</a></li>
+<li class="toc-level-3"><a href="#gercek-musteri-iadesi">Gerçek müşteri iadesi</a></li>
+<li class="toc-level-2"><a href="#19-gecikme-bedeli">19. Gecikme bedeli</a></li>
+<li class="toc-level-2"><a href="#20-odeme-kullanim-takvimi">20. Ödeme / Kullanım Takvimi</a></li>
+<li class="toc-level-2"><a href="#21-aylik-kar">21. Aylık Kâr</a></li>
+<li class="toc-level-2"><a href="#22-raporlar">22. Raporlar</a></li>
+<li class="toc-level-3"><a href="#22-1-musteri-teklif-raporu">22.1 Müşteri Teklif Raporu</a></li>
+<li class="toc-level-3"><a href="#22-2-ic-finansal-analiz">22.2 İç Finansal Analiz</a></li>
+<li class="toc-level-3"><a href="#22-3-disa-aktarma">22.3 Dışa aktarma</a></li>
+<li class="toc-level-2"><a href="#23-backup-ve-restore">23. Backup ve restore</a></li>
+<li class="toc-level-3"><a href="#tam-yedek-alma">Tam yedek alma</a></li>
+<li class="toc-level-3"><a href="#geri-yukleme">Geri yükleme</a></li>
+<li class="toc-level-2"><a href="#24-sik-karsilasilan-uyarilar">24. Sık karşılaşılan uyarılar</a></li>
+<li class="toc-level-2"><a href="#25-sik-sorulan-sorular">25. Sık sorulan sorular</a></li>
+<li class="toc-level-2"><a href="#26-terimler-sozlugu">26. Terimler sözlüğü</a></li>
+<li class="toc-level-2"><a href="#27-kontrol-listeleri">27. Kontrol listeleri</a></li>
+<li class="toc-level-3"><a href="#teklif-finallestirmeden-once">Teklif finalleştirmeden önce</a></li>
+<li class="toc-level-3"><a href="#gerceklesme-kaydetmeden-once">Gerçekleşme kaydetmeden önce</a></li>
+<li class="toc-level-3"><a href="#rapor-gondermeden-once">Rapor göndermeden önce</a></li>
+<li class="toc-level-3"><a href="#yedek-geri-yuklemeden-once">Yedek geri yüklemeden önce</a></li>
+<li class="toc-level-2"><a href="#28-ekler">28. Ekler</a></li>
+<li class="toc-level-3"><a href="#ek-a-destek-matrisi">Ek A — Destek matrisi</a></li>
+<li class="toc-level-3"><a href="#ek-b-formul-ozeti">Ek B — Formül özeti</a></li>
+<li class="toc-level-3"><a href="#ek-c-demo-veri-seti-ozeti">Ek C — Demo veri seti özeti</a></li>
+<li class="toc-level-3"><a href="#ek-d-surum-bilgileri">Ek D — Sürüm bilgileri</a></li>
+<li class="toc-level-3"><a href="#ek-e-bilinen-sinirlamalar">Ek E — Bilinen sınırlamalar</a></li>
+<li class="toc-level-3"><a href="#ek-f-icerik-dogruluk-matrisi">Ek F — İçerik doğruluk matrisi</a></li></ol>
+    </section>
+    <h2 id="belge-bilgileri">Belge bilgileri</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Bilgi</th><th>Değer</th>
+</tr></thead><tbody>
+<tr><td>Uygulama sürümü</td><td>3.0.3</td></tr>
+<tr><td>Hesaplama politikası</td><td>K2-ENERJIPRO-3.0.0</td></tr>
+<tr><td>Backup schema</td><td>v2</td></tr>
+<tr><td>Veri depolama</td><td>Tarayıcı içindeki yerel IndexedDB</td></tr>
+<tr><td>Hedef kitle</td><td>Satış, finans, risk ve teklif ekipleri; demo sunumu yapan kullanıcılar; teknik olmayan yöneticiler</td></tr>
+<tr><td>Finansman gün bazı</td><td>365 gün</td></tr>
+<tr><td>Gecikme gün bazı</td><td>360 gün</td></tr>
+<tr><td>Varsayılan aylık gecikme oranı</td><td>%5,55</td></tr>
+<tr><td>Belge kapsamı</td><td>Demo veri yükleme, müşteri, teklif, ödeme planı, gerçekleşme, takvim, kâr, rapor ve yedekleme</td></tr>
+</tbody></table></div>
+<p>Bu rehber gerçek uygulama arayüzü, deterministik demo veri seti, hesaplama motoru kodu ve çalışan otomatik testlerle karşılaştırılarak hazırlanmıştır. “Snapshot” sözcüğü bu belgede, <strong>teklif oluşturulduğu andaki fiyat, tarife ve hesaplama değerlerinin değiştirilemez kopyası</strong> anlamına gelir.</p>
+<h2 id="dogrulanmis-uygulama-envanteri">Doğrulanmış uygulama envanteri</h2>
+<ol><li><strong>Sayfalar ve route’lar:</strong> Gösterge Paneli (<code>/</code>), Müşteriler (<code>/customers</code>), Müşteri Detayı (<code>/customers/:customerId</code>), Maliyet Hesaplama (<code>/cost-calculation</code>), Planlanan Teklifler (<code>/offers</code>), Teklif Detayı (<code>/offers/:offerId</code>), Gerçekleşme Simülasyonu (<code>/realization</code> ve <code>/realization/:scenarioId</code>), Ödeme / Kullanım Takvimi (<code>/payment-calendar</code>), Aylık Kâr (<code>/monthly-profit</code>), Grafikler (<code>/charts</code>), Tarife Karşılaştırması (<code>/comparison</code>), Raporlar (<code>/reports</code>), Ayarlar (<code>/settings</code>) ve bulunamayan sayfa görünümü.</li><li><strong>Temel işlemler:</strong> Müşteri ekleme/arşivleme, taslak ve nihai teklif üretme, ödeme planı kurma, gerçekleşme senaryosu oluşturma, gerçek tahsilat/iade girme, takvim ve kâr inceleme, rapor dışa aktarma, demo veri yönetimi ve backup/restore.</li><li><strong>Teklif akışı:</strong> Tüketim → Maliyet → Ödeme planı → Başabaş → Teklif.</li><li><strong>Ödeme planları:</strong> Dokuz şablon; ayrıca gelişmiş satır ve mutabakat düzenleyicisi.</li><li><strong>Gerçekleşme:</strong> Kaynak tekliften bağımsız senaryo; dönemsel gerçek PTF/YEKDEM, tüketim, tahsilat, iade, komisyon, kredi ve valör değişiklikleri.</li><li><strong>Raporlar:</strong> Müşteri Teklif Raporu ve İç Finansal Analiz Raporu çalışır; dört ek rapor seçeneği demoda devre dışıdır.</li><li><strong>Ayarlar:</strong> Aylık piyasa verisi, tarife kataloğu, tema, demo veri seti, gecikme politikası, tatil, backup/restore ve 2.17 migration.</li><li><strong>Desteklenen GES:</strong> Basit öz tüketim, gelişmiş ölçüm, aylık veya manuel mahsuplaşma, ayrı nakit çıkışı; PTF, PTF+YEKDEM, düzenlemeye tabi veya manuel ihtiyaç fazlası fiyatı.</li><li><strong>Desteklenmeyen GES:</strong> Saatlik mahsuplaşma ve faturadan mahsup (<code>invoice_offset</code>) final teklifte engellenir.</li><li><strong>Tarife:</strong> Her fatura dönemi tarih aralığına göre aktif tarife versiyonu çözümlenir; eksik veya çakışan tarife finali engeller; dönemsel override neden gerektirir.</li><li><strong>Backup/restore:</strong> Schema v2 JSON zarfı önizlenir, referansları ve değerleri doğrulanır, onaydan sonra tek bir IndexedDB veritabanı işlemi içinde yazılır.</li><li><strong>Demo kayıtları:</strong> Üç müşteri, altı nihai teklif, bir gerçekleşme senaryosu; Temmuz-Ağustos 2026 tahmin ve gerçekleşen piyasa fiyatları.</li><li><strong>Uyarılar:</strong> Eksik tarife/fiyat, unsupported GES, eksik override nedeni, legacy snapshot, açık finansman, avans, açık alacak ve geçersiz backup açık mesajlarla gösterilir.</li><li><strong>Bilinen sınırlar:</strong> Backend, kullanıcı girişi, çok kullanıcılı çalışma, canlı EPİAŞ, otomatik mevzuat/tarife güncellemesi, e-fatura ve yerleşik PDF motoru yoktur.</li></ol>
+<hr>
+<h2 id="1-k2-enerjipro-nedir">1. K2 EnerjiPro nedir?</h2>
+<p>K2 EnerjiPro, enerji satış teklifinin yalnızca birim fiyatını değil, teklifin <strong>zaman içindeki nakit ve kârlılık etkisini</strong> birlikte görmeye yarayan yerel bir demo uygulamasıdır. Kullanım dönemi, tüketim, PTF, YEKDEM, tarife, vergiler, tedarikçi ödeme tarihleri, müşteri tahsilatları, finansman ve GES varsayımlarını tek akışta bir araya getirir.</p>
+<ul><li><strong>Teklif</strong>, müşteriye sunulması planlanan fiyat ve ödeme koşullarını gösterir.</li><li><strong>Finansman</strong>, tedarikçi çıkışları ile müşteri tahsilatları arasındaki zaman farkının kredi maliyetini veya valör getirisini gösterir.</li><li><strong>Gerçekleşme</strong>, planlanan teklif değişmeden gerçek fiyat, tüketim ve tahsilatların ayrı bir senaryoda izlenmesidir.</li><li><strong>Planlanan sonuç</strong>, teklif oluşturulurken bilinen değerlerin değiştirilemez kopyasına dayanır.</li><li><strong>Gerçekleşen sonuç</strong>, daha sonra girilen gerçek değerler ve gerçek nakit hareketleriyle hesaplanır.</li></ul>
+<p>Bu ayrım, “teklif verirken ne bekliyorduk?” ve “sonuçta ne oldu?” sorularının birbirine karışmasını önler.</p>
+<h2 id="2-demo-surumunun-sinirlari">2. Demo sürümünün sınırları</h2>
+<p>Demo sürümünde:</p>
+<ul><li>Backend ve merkezi veritabanı yoktur.</li><li>Çok kullanıcılı çalışma ve eş zamanlı kayıt yönetimi yoktur.</li><li>Kullanıcı girişi veya rol/yetki sistemi yoktur.</li><li>Veriler yalnız kullanılan tarayıcının IndexedDB alanında saklanır.</li><li>Canlı EPİAŞ entegrasyonu yoktur; PTF ve YEKDEM kullanıcı girdisidir.</li><li>Otomatik mevzuat ve tarife güncellemesi yoktur.</li><li>Resmî e-fatura veya muhasebe entegrasyonu yoktur.</li><li>Saatlik GES mahsuplaşması desteklenmez.</li><li>GES’in faturadan mahsup modu desteklenmez.</li><li>PDF, tarayıcının <strong>Yazdır / PDF olarak kaydet</strong> özelliğiyle üretilir.</li></ul>
+<figure><img src="screenshots/22-demo-limitations.png" alt="Demo sınırları"><figcaption>Demo sınırları</figcaption></figure>
+<h2 id="3-uygulamayi-baslatma">3. Uygulamayı başlatma</h2>
+<h3 id="3-1-gelistirici-yontemi">3.1 Geliştirici yöntemi</h3>
+<p>Windows Terminal veya PowerShell’de proje klasörüne geçin:</p>
+<pre><code class="language-powershell">cd C:\Users\yusuf\Projeler\kepsas\k2-enerji\k2-enerjipro-3.0
+npm install
+npm run dev -- --host 127.0.0.1</code></pre>
+<p>Terminalde gösterilen adresi tarayıcıda açın. Standart geliştirme adresi çoğunlukla <code>http://127.0.0.1:4173</code> olur.</p>
+<h3 id="3-2-hazir-build-yontemi">3.2 Hazır build yöntemi</h3>
+<pre><code class="language-powershell">cd C:\Users\yusuf\Projeler\kepsas\k2-enerji\k2-enerjipro-3.0
+npm install
+npm run build
+npm run preview</code></pre>
+<p>Terminalde gösterilen preview adresini açın. Terminal penceresi kapatılırsa yerel sunucu da durur.</p>
+<h2 id="4-ilk-acilis">4. İlk açılış</h2>
+<p>Boş başlangıç ekranında üç güvenli yol sunulur:</p>
+<ul><li><strong>Yeni müşteri oluştur:</strong> Müşteri portföyünü açar.</li><li><strong>Demo verisi yükle:</strong> Ayarlar’daki kontrollü demo alanına götürür.</li><li><strong>Yedekten geri yükle:</strong> Backup önizleme alanına götürür.</li></ul>
+<p>Gösterge Paneli, müşteri/teklif bulunmadığında sıfır özetleri ve “İlk adımı seçin” kartını gösterir. Veriler yüklendikçe aktif müşteri, planlanan fatura, net kâr, kredi maliyeti ve nakit grafiği gerçek hesap sonuçlarından beslenir.</p>
+<h2 id="5-demo-verisini-yukleme">5. Demo verisini yükleme</h2>
+<ol><li>Sol menüden <strong>Ayarlar</strong>’ı açın.</li><li><strong>Sunum veri seti</strong> bölümüne gidin.</li><li><strong>Demo verisi yükle</strong> düğmesine basın.</li><li>“Demo verisi yüklemek mevcut veriyi değiştirebilir. Önce yedek alın.” uyarısını okuyun.</li><li><strong>Uyarıyı kabul et ve yükle</strong> düğmesine basın.</li><li>“Kontrollü demo verisi yüklendi” bildirimini doğrulayın.</li></ol>
+<figure><img src="screenshots/02-demo-data-load.png" alt="Demo verisi yükleme onayı"><figcaption>Demo verisi yükleme onayı</figcaption></figure>
+<p>Yüklenen örnekler:</p>
+<ul><li>Demo Anadolu Sanayi</li><li>Demo Merkez Ticarethane</li><li>Demo GES Üretim Tesisi</li><li>Standart vadeli, tam ön ödeme, kısmi avans, komisyonlu kart, Advanced GES ve legacy teklif örnekleri</li><li>Gecikmeli tahsilat ve açık alacak gerçekleşme senaryosu</li></ul>
+<p>Demo yükleme, deterministik demo kimliklerini ekler veya günceller. Demo dışındaki kullanıcı kayıtlarını silmez. Aynı aylarda kullanıcı tarafından girilmiş piyasa kayıtlarını korur.</p>
+<p><strong>Demo verisini temizlemek için:</strong> Ayarlar → <strong>Demo verisini temizle</strong> → uyarıyı okuyun → <strong>Yalnız demo verisini temizle</strong>. Bu işlem yalnız deterministik demo kayıtlarını ve “K2 Demo Fixture” kaynaklı aylık fiyatları kaldırır.</p>
+<h2 id="6-ekran-ve-menu-yapisi">6. Ekran ve menü yapısı</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Menü / route</th><th>Ne işe yarar?</th><th>Diğer ekranlara etkisi</th>
+</tr></thead><tbody>
+<tr><td>Gösterge Paneli <code>/</code></td><td>Portföy özetleri ve nakit görünümü</td><td>Kayıtlı müşteri, teklif ve senaryoları özetler</td></tr>
+<tr><td>Müşteriler <code>/customers</code></td><td>Müşteri ekleme, arama ve arşivleme</td><td>Tekliflerin müşteriyle bağını sağlar</td></tr>
+<tr><td>Müşteri Detayı <code>/customers/:id</code></td><td>Müşterinin teklif geçmişini gösterir</td><td>Yeni maliyet çalışmasına müşteriyle başlatır</td></tr>
+<tr><td>Maliyet Hesaplama <code>/cost-calculation</code></td><td>Beş adımlı teklif hazırlama</td><td>Taslak veya sonradan değiştirilemeyen nihai teklif üretir</td></tr>
+<tr><td>Planlanan Teklifler <code>/offers</code></td><td>Nihai teklifleri ve versiyonları listeler</td><td>Teklif detayı veya gerçekleşme oluşturur</td></tr>
+<tr><td>Teklif Detayı <code>/offers/:id</code></td><td>Snapshot, fatura, finansman ve kaynak izini gösterir</td><td>Takvim ve gerçekleşmeye geçiş sağlar</td></tr>
+<tr><td>Gerçekleşme Simülasyonu <code>/realization</code></td><td>Yeni senaryo başlatır veya senaryo seçer</td><td>Kaynak teklifi değiştirmeden actual sonuç üretir</td></tr>
+<tr><td>Gerçekleşme Detayı <code>/realization/:id</code></td><td>Actual fiyat, tüketim, tahsilat ve iade girişi</td><td>Takvim, kâr ve iç rapor sonuçlarını etkiler</td></tr>
+<tr><td>Ödeme / Kullanım Takvimi <code>/payment-calendar</code></td><td>Günlük tüketim, nakit ve finansman tablosu</td><td>Yeni formül üretmez; kayıtlı hesaplama sonucunu gösterir</td></tr>
+<tr><td>Aylık Kâr <code>/monthly-profit</code></td><td>Tahakkuk ve nakdi ay ay karşılaştırır</td><td>Teklif ile senaryoyu yan yana gösterir</td></tr>
+<tr><td>Grafikler <code>/charts</code></td><td>Seçilen teklif ve senaryoların trendleri</td><td>Kayıtlı hesap sonuçlarını görselleştirir</td></tr>
+<tr><td>Tarife Karşılaştırması <code>/comparison</code></td><td>Müşteri tasarrufu ve EPSAŞ kârını karşılaştırır</td><td>Seçilen teklif snapshot’larını kullanır</td></tr>
+<tr><td>Raporlar <code>/reports</code></td><td>Müşteri ve iç analiz çıktıları</td><td>CSV, JSON ve yazdırma sunar</td></tr>
+<tr><td>Ayarlar <code>/settings</code></td><td>Piyasa verisi, tarife, gecikme, demo ve backup</td><td>Yeni hesapların varsayım kaynaklarını yönetir</td></tr>
+</tbody></table></div>
+<h2 id="7-musteri-olusturma">7. Müşteri oluşturma</h2>
+<ol><li><strong>Müşteriler</strong> menüsünü açın.</li><li><strong>Yeni müşteri</strong> düğmesine basın.</li><li><strong>Müşteri adı</strong> alanına teklif ve raporlarda görünecek ticari unvanı yazın. Bu alan zorunludur.</li><li>İsteğe bağlı <strong>Etiket / kategori</strong> alanına “Sanayi”, “Öncelikli” gibi kısa bir sınıf girin.</li><li>İsteğe bağlı <strong>Müşteri notu</strong> alanına operasyonel not yazın.</li><li><strong>Müşteriyi kaydet</strong> düğmesine basın.</li></ol>
+<figure><img src="screenshots/04-new-customer.png" alt="Yeni müşteri formu"><figcaption>Yeni müşteri formu</figcaption></figure>
+<p>Müşteri kartındaki <strong>Detay</strong> bağlantısı teklif geçmişini açar. <strong>Arşivle</strong>, kaydı silmez; aktif listeden arşiv listesine taşır. Arşivdeki kayıt <strong>Geri yükle</strong> ile yeniden aktif yapılabilir.</p>
+<figure><img src="screenshots/03-customer-list.png" alt="Demo müşteri listesi"><figcaption>Demo müşteri listesi</figcaption></figure>
+<h2 id="8-yeni-teklif-hazirlama">8. Yeni teklif hazırlama</h2>
+<p>Maliyet Hesaplama beş adımdan oluşur. Sol üstteki adım şeridiyle önceki adımlara dönebilirsiniz.</p>
+<figure><img src="screenshots/05-cost-calculation-general.png" alt="Tüketim ve teknik bilgiler"><figcaption>Tüketim ve teknik bilgiler</figcaption></figure>
+<h3 id="8-1-tuketim-ve-teknik-bilgiler">8.1 Tüketim ve teknik bilgiler</h3>
+<div class="table-wrap"><table><thead><tr>
+<th>Alan</th><th>Kullanıcı ne girer?</th><th>Birim / etki</th><th>Otomatik veya engel</th>
+</tr></thead><tbody>
+<tr><td>Müşteri</td><td>Kayıtlı müşteri</td><td>—</td><td>Taslak müşterisiz olabilir; final teklif müşterisiz kaydedilemez</td></tr>
+<tr><td>Çalışma başlığı</td><td>Teklifin anlaşılır adı</td><td>—</td><td>Liste ve raporlarda görünür</td></tr>
+<tr><td>Kullanım başlangıcı/bitişi</td><td>Sözleşme tarihleri</td><td>Tarih</td><td>Bitiş başlangıçtan önce olamaz</td></tr>
+<tr><td>Tüketim birimi</td><td>MWh veya kWh</td><td>Enerji</td><td>Hesaplamada MWh’ye dönüştürülür</td></tr>
+<tr><td>Aylık tüketim</td><td>Pozitif tüketim</td><td>MWh/kWh</td><td>Kısmi aylar gün sayısına göre oranlanır</td></tr>
+<tr><td>GES modu</td><td>Basit veya gelişmiş</td><td>—</td><td>Desteklenmeyen GES seçimi finali engeller</td></tr>
+</tbody></table></div>
+<h3 id="8-2-maliyet-girdileri">8.2 Maliyet girdileri</h3>
+<div class="table-wrap"><table><thead><tr>
+<th>Alan</th><th>Anlamı</th><th>Sonuca etkisi</th>
+</tr></thead><tbody>
+<tr><td>Müşteri tipi</td><td>Tarife profili</td><td>Dönemsel KDV, BTV ve dağıtım kaynağını belirler</td></tr>
+<tr><td>PTF</td><td>Piyasa Takas Fiyatı</td><td>Aktif enerji tabanının ilk bileşeni; aylık Ayarlar kaydından gelir</td></tr>
+<tr><td>YEKDEM</td><td>Yenilenebilir destek maliyeti</td><td>Aktif enerji tabanının ikinci bileşeni; negatif olamaz</td></tr>
+<tr><td>Dağıtım</td><td>Şebeke hizmet bedeli</td><td>KDV matrahına girer, BTV matrahına girmez</td></tr>
+<tr><td>KDV</td><td>Katma Değer Vergisi oranı</td><td>Dönem tarifesinden gelir</td></tr>
+<tr><td>BTV</td><td>Belediye Tüketim Vergisi oranı</td><td>Yalnız aktif enerji satış bedeline uygulanır</td></tr>
+<tr><td>Sözleşme gücü</td><td>Sözleşme geneli sabit bedel</td><td>Dönemlere kullanım gününe göre dağıtılır</td></tr>
+<tr><td>Dengesizlik</td><td>Operasyon maliyet oranı</td><td>EPSAŞ kârlılığını azaltır</td></tr>
+<tr><td>PİÜ</td><td>Piyasa işlem ücreti oranı</td><td>EPSAŞ kârlılığını azaltır</td></tr>
+<tr><td>Yıllık kredi faizi</td><td>Negatif nakit bakiyesi maliyeti</td><td>365 gün, günlük bileşik</td></tr>
+<tr><td>Yıllık valör faizi</td><td>Pozitif bakiye getirisi</td><td>365 gün, günlük bileşik</td></tr>
+<tr><td>Tedarikçi ödeme farkları</td><td>YEKDEM, dağıtım/güç, KDV, BTV günleri</td><td>Tedarikçi nakit çıkış tarihini ve finansmanı değiştirir</td></tr>
+</tbody></table></div>
+<figure><img src="screenshots/06-market-prices.png" alt="Aylık piyasa fiyatı çözümlemesi"><figcaption>Aylık piyasa fiyatı çözümlemesi</figcaption></figure>
+<p>Her dönem için <strong>Dönemsel tarife kaynakları</strong> tablosunda kaynak, versiyon, KDV/BTV/dağıtım ve manuel override durumu görülür.</p>
+<figure><img src="screenshots/07-tariff-snapshot.png" alt="Dönemsel tarife snapshot’ı"><figcaption>Dönemsel tarife snapshot’ı</figcaption></figure>
+<h3 id="8-3-ges-alanlari">8.3 GES alanları</h3>
+<ul><li>Basit modda <strong>GES Öz Tüketim Oranı</strong> girilir.</li><li>Gelişmiş modda toplam üretim, eş zamanlı öz tüketim, şebekeden çekiş, şebekeye veriş ve mahsuplaşma sonrası fazla girilir.</li><li>İhtiyaç fazlası için fiyat tipi, ödeme günü ve manuel sabit vergi/maliyet seçilebilir.</li><li>Öz tüketim müşteri tahsilatı veya ayrı nakit girişi değildir; şebekeden satın alınan enerjiyi azaltan ekonomik tasarruftur.</li></ul>
+<figure><img src="screenshots/10-ges-settings.png" alt="Gelişmiş GES alanları"><figcaption>Gelişmiş GES alanları</figcaption></figure>
+<h3 id="8-4-odeme-plani">8.4 Ödeme planı</h3>
+<p>Ödeme planı, müşteri faturasının ne zaman ve hangi kanaldan tahsil edileceğini belirler. “Basit” görünüm şablonları, “Gelişmiş” görünüm satır ayrıntılarını ve mutabakatı gösterir.</p>
+<figure><img src="screenshots/08-payment-plan.png" alt="Ödeme planı şablonları"><figcaption>Ödeme planı şablonları</figcaption></figure>
+<h3 id="8-5-basabas-ve-teklif">8.5 Başabaş ve teklif</h3>
+<p>Başabaş adımı, kredi/valör ve operasyon maliyetleri dahil EPSAŞ net kârının sıfır olduğu teklif oranını gösterir. Teklif adımında oran elle veya hızlı oran düğmeleriyle seçilir; fatura, finansman, müşteri avantajı ve net kâr canlı güncellenir.</p>
+<p>Finali engelleyen başlıca durumlar:</p>
+<ul><li>Müşteri seçilmemiş olması</li><li>Teklif oranının girilmemiş olması</li><li>Geçersiz tarih veya tüketim</li><li>Sözleşme aylarından birinde tahmini PTF/YEKDEM bulunmaması</li><li>Dönemi tamamen kapsayan aktif tarife bulunmaması</li><li>Tarife override nedeni eksik olması</li><li>Saatlik GES veya faturadan mahsup seçilmesi</li><li>Geçersiz ödeme planı satırı</li></ul>
+<h2 id="9-teklif-hesaplama-mantigi">9. Teklif hesaplama mantığı</h2>
+<h3 id="9-1-aktif-enerji">9.1 Aktif enerji</h3>
+<pre><code class="language-text">Aktif Enerji Tabanı = PTF Tutarı + YEKDEM Tutarı
+Teklif Marjı = Aktif Enerji Tabanı × Teklif Oranı
+Aktif Enerji Satış Bedeli = Aktif Enerji Tabanı + Teklif Marjı</code></pre>
+<p>PTF ve YEKDEM birim fiyatları dönem tüketimiyle çarpılarak tutara dönüşür. Teklif oranı yüzde olarak uygulanır.</p>
+<h3 id="9-2-btv">9.2 BTV</h3>
+<pre><code class="language-text">BTV Matrahı = Aktif Enerji Satış Bedeli
+BTV = BTV Matrahı × BTV Oranı</code></pre>
+<p><strong>Dağıtım bedeli BTV matrahına girmez.</strong> Sözleşme gücü ve önceki dönem gecikme satırları da BTV matrahına eklenmez.</p>
+<h3 id="9-3-kdv">9.3 KDV</h3>
+<pre><code class="language-text">KDV Matrahı =
+  Aktif Enerji Satış Bedeli
+  + Dağıtım
+  + Sözleşme Gücü
+  + BTV
+
+KDV = KDV Matrahı × KDV Oranı</code></pre>
+<p>Hesap motoru ara adımlarda görüntüleme yuvarlaması yapmaz. Ekrandaki iki veya altı basamaklı gösterimler yalnız sunum içindir; hesaplama tam sayısal değerlerle ilerler.</p>
+<figure><img src="screenshots/11-calculation-summary.png" alt="Hesaplama özeti"><figcaption>Hesaplama özeti</figcaption></figure>
+<h2 id="10-tarife-katalogu">10. Tarife kataloğu</h2>
+<p>Tarife versiyonu, belirli bir müşteri tipi ve tarih aralığı için KDV, BTV ve dağıtım değerlerinin kayıtlı halidir.</p>
+<ul><li><strong>validFrom:</strong> Tarifenin ilk geçerli günü.</li><li><strong>validTo:</strong> Tarifenin son geçerli günü. Boşsa açık uçlu olabilir.</li><li>Her fatura dönemi ayrı çözümlenir; Temmuz ve Ağustos farklı tarife snapshot’larına sahip olabilir.</li><li>Varsayılan demo tarifeleri <code>2026-01-01</code>–<code>2026-12-31</code> aralığındadır.</li><li>2026 tarifesi 2027’ye sessizce taşınmaz. 2027 dönemi için geçerli tarife yoksa final teklif engellenir.</li><li>Aynı müşteri tipinde çakışan aktif tarifeler kaydedilemez.</li><li>Manuel override açılırsa dönem KDV/BTV/dağıtım değerleri girilir ve <strong>override nedeni</strong> zorunludur.</li><li>Nihai teklif tarife snapshot’ını saklar; Ayarlar’daki tarife daha sonra değişse bile eski teklif değişmez.</li></ul>
+<figure><img src="screenshots/20-settings-tariffs.png" alt="Ayarlar tarife kataloğu"><figcaption>Ayarlar tarife kataloğu</figcaption></figure>
+<h2 id="11-aylik-ptf-ve-yekdem">11. Aylık PTF ve YEKDEM</h2>
+<p><strong>Ayarlar → PTF ve YEKDEM Tahmin/Gerçekleşen Değerleri</strong> tablosunda ay bazında dört değer tutulabilir:</p>
+<ul><li>Tahmini PTF</li><li>Gerçekleşen PTF</li><li>Tahmini YEKDEM</li><li>Gerçekleşen YEKDEM</li></ul>
+<p>PTF negatif olabilir; YEKDEM negatif olamaz. Yeni teklif tahmini değerleri, gerçekleşme senaryosu gerçekleşen değerleri kullanır. Çok aylı teklifte her ay kendi kaydından çözülür. Ağustos gerçekleşen fiyatı, Temmuz döneminin hesabında erken kullanılmaz.</p>
+<p>Bir sözleşme ayında tahmini PTF veya YEKDEM eksikse nihai teklif engellenir. Eski snapshot’larda aylık kaynak metadata’sı yoksa kayıtlı legacy sayılar korunur ve uyarı gösterilir.</p>
+<h2 id="12-odeme-planlari">12. Ödeme planları</h2>
+<p>Uygulamadaki gerçek şablonlar:</p>
+<div class="table-wrap"><table><thead><tr>
+<th>Şablon</th><th>Ne zaman kullanılır?</th><th>Tarih ve tahsilat</th>
+</tr></thead><tbody>
+<tr><td>Standart Vadeli</td><td>Normal EFT tahsilatı</td><td>Her faturanın kalanı fatura tarihinden 10 gün sonra</td></tr>
+<tr><td>Sabit Gün</td><td>Her ay belirli takvim günü</td><td>Takip eden ayın 10. günü</td></tr>
+<tr><td>Tam Ön Ödeme</td><td>Kullanım öncesi tam avans</td><td>Dönem faturasının %100’ü dönem başlangıcından 10 gün önce</td></tr>
+<tr><td>Kısmi Avans + Kalan</td><td>Avans ve vade birlikte</td><td>%80 avans, kalan fatura tarihinden 10 gün sonra</td></tr>
+<tr><td>Kredi Kartı Tek Çekim</td><td>Tek çekim kart</td><td>Kalan fatura; banka EPSAŞ’a bir gün sonra aktarır</td></tr>
+<tr><td>Kart Taksitli · Peşin Aktarım</td><td>Müşteri taksitli, EPSAŞ peşin</td><td>Müşteri üç taksit; banka EPSAŞ’a tek net aktarım</td></tr>
+<tr><td>Kart Taksitli · Taksitli Aktarım</td><td>Banka da parça parça aktarır</td><td>Üç aktarım, 30 gün aralık</td></tr>
+<tr><td>Karma Plan</td><td>Birden fazla kanal/tarih</td><td>%30 avans EFT, %40 kart, kalan vadeli EFT</td></tr>
+<tr><td>Özel Plan</td><td>Sözleşmeye özgü koşul</td><td>Satırlar kullanıcı tarafından eklenir</td></tr>
+</tbody></table></div>
+<h3 id="gelismis-satir-alanlari">Gelişmiş satır alanları</h3>
+<p>Satır adı, aktiflik, dönem kapsamı, tutar tipi, tarih referansı, gün/ay farkı, manuel tarih, ödeme kanalı, taksit sayısı, banka aktarım biçimi, banka valörü, komisyon oranı, komisyonu ödeyen ve not düzenlenebilir.</p>
+<ul><li><strong>EPSAŞ komisyonu:</strong> Enerji gelirini değiştirmez; EPSAŞ net nakit girişini ve kârı azaltan kanal maliyetidir.</li><li><strong>Müşteri komisyonu:</strong> Müşterinin brüt tahsilatını artırır; enerji anaparası veya EPSAŞ enerji geliri değildir.</li><li><strong>Brüt tahsilat:</strong> Müşterinin ödediği toplamdır.</li><li><strong>Net nakit:</strong> Kanal maliyeti ve aktarım koşulları sonrası EPSAŞ’a ulaşan tutardır.</li></ul>
+<h2 id="13-mutabakat">13. Mutabakat</h2>
+<p>Mutabakat, planlanan ödeme ile fatura alacağı arasındaki fazla veya eksik kısmın nasıl işleneceğini belirler.</p>
+<figure><img src="screenshots/09-reconciliation-settings.png" alt="Mutabakat ayarları"><figcaption>Mutabakat ayarları</figcaption></figure>
+<h3 id="mutabakat-kapali">Mutabakat kapalı</h3>
+<ul><li>Fazla ödeme müşteri avansı olarak kalır.</li><li>Eksik ödeme açık alacak olarak kalır.</li><li>Otomatik taşıma, iade veya tamamlayıcı tahsilat üretilmez.</li></ul>
+<h3 id="fazla-odeme-secenekleri">Fazla ödeme seçenekleri</h3>
+<ul><li><strong>Sonraki faturaya taşı:</strong> Avans sonraki faturanın anaparasına uygulanır; nakit yeniden üretilmez.</li><li><strong>Belirli gün sonra iade:</strong> Seçilen referans tarihinden belirlenen gün sonra planlı iade talimatı oluşur.</li><li><strong>Sözleşme sonunda iade:</strong> Kullanılmayan avans sözleşme sonunda iade edilir.</li></ul>
+<h3 id="eksik-odeme-secenekleri">Eksik ödeme seçenekleri</h3>
+<ul><li><strong>Tamamlayıcı tahsilat:</strong> Belirlenen gün ve kanalda ek tahsilat planlanır.</li><li><strong>Sonraki faturaya taşı:</strong> Açık alacağın vadesi ve nakit hedefi sonraki faturaya aktarılır.</li><li><strong>Açık alacak bırak:</strong> Eksik kısım açık alacak olarak izlenir.</li></ul>
+<h3 id="basit-ornekler">Basit örnekler</h3>
+<ol><li><strong>100 TL fatura, 150 TL ödeme:</strong> Mutabakat kapalıysa 100 TL alacak kapanır, 50 TL müşteri avansıdır. <strong>Sonraki faturaya taşı</strong> seçiliyse 50 TL sonraki faturaya uygulanır.</li><li><strong>100 TL fatura, 50 TL ödeme:</strong> 50 TL anapara kapanır, 50 TL açık alacak kalır. Tamamlayıcı tahsilat seçiliyse bu 50 TL için yeni tahsilat hedefi oluşur.</li><li><strong>İki dönemli sonraki faturaya taşıma:</strong> İlk fatura 100 TL, ödeme 150 TL; ikinci fatura 120 TL ise ilk dönemden kalan 50 TL avans ikinci faturaya uygulanır. İkinci dönem gerçek nakit ihtiyacı 70 TL olur. 50 TL yeniden gelir veya kâr yazılmaz.</li></ol>
+<h2 id="14-finansman">14. Finansman</h2>
+<p>Finansman ekranı günlük ortak sözleşme bakiyesini kullanır.</p>
+<pre><code class="language-text">Gün başı bakiye
+− tedarikçi çıkışları
+− müşteri iadeleri
+= faiz bazı
+
+Faiz bazı negatifse kredi maliyeti
+Faiz bazı pozitifse valör getirisi
+
+Gün sonu = faiz sonrası bakiye + müşteri tahsilatı + gecikme tahsilatı</code></pre>
+<ul><li>Kredi ve valör yıllık oranı <strong>365 gün</strong> bazında günlük işler.</li><li>Faiz günlük bileşiktir; her günün kapanışı ertesi günün açılışıdır.</li><li>Hafta sonu ve tatillerde de takvim günü faizi işler.</li><li>Aynı gün tedarikçi çıkışları faiz bazından önce, müşteri tahsilatı faiz hesabından sonra uygulanır.</li><li>Bu nedenle aynı gün gelen müşteri tahsilatı o gün valör üretmez; ertesi günün pozitif açılışına katkı verir.</li><li>Bakiye pozitife çıkınca kredi faizi durur. Sonraki gider bakiyeyi yeniden negatife düşürürse kredi yeniden başlar.</li><li><strong>Açık finansman bakiyesi</strong>, hesaplama bitişindeki negatif kapanış bakiyesinin mutlak tutarıdır; bu tutar ödenmiş sayılmaz.</li></ul>
+<h2 id="15-ges">15. GES</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Özellik</th><th>Durum</th><th>Açıklama</th>
+</tr></thead><tbody>
+<tr><td>Basit öz tüketim</td><td>Destekleniyor</td><td>Brüt tüketimin belirli yüzdesini öz tüketim kabul eder</td></tr>
+<tr><td>Advanced metering</td><td>Destekleniyor</td><td>Üretim, öz tüketim, çekiş, veriş ve fazla ayrı girilir</td></tr>
+<tr><td>Aylık mahsuplaşma</td><td>Destekleniyor</td><td>Aylık fiziksel toplamlar kullanılır</td></tr>
+<tr><td>Manuel mahsuplaşma</td><td>Destekleniyor</td><td>Mahsuplaşma sonrası fazla kullanıcı girdisidir</td></tr>
+<tr><td>Saatlik mahsuplaşma</td><td>Desteklenmiyor</td><td>Saatlik üretim/tüketim serisi gerekir; final engellenir</td></tr>
+<tr><td>Cash outflow</td><td>Destekleniyor</td><td>İhtiyaç fazlası alımı ayrı tedarikçi nakit çıkışıdır</td></tr>
+<tr><td>Invoice offset</td><td>Desteklenmiyor</td><td>Vergi ve matrah etkileri tanımlı değildir</td></tr>
+<tr><td>PTF</td><td>Destekleniyor</td><td>İhtiyaç fazlası PTF ile fiyatlanır</td></tr>
+<tr><td>PTF+YEKDEM</td><td>Destekleniyor</td><td>İki fiyatın toplamı kullanılır</td></tr>
+<tr><td>Manuel fiyat</td><td>Destekleniyor</td><td>TL/MWh kullanıcı girdisidir</td></tr>
+</tbody></table></div>
+<p>Kavramlar:</p>
+<ul><li><strong>Brüt tüketim:</strong> Tesisin toplam enerji ihtiyacı.</li><li><strong>Öz tüketim:</strong> GES üretiminin tesiste eş zamanlı kullanılan kısmı.</li><li><strong>Şebekeden çekiş:</strong> Şebekeden satın alınan enerji.</li><li><strong>Şebekeye veriş:</strong> Şebekeye aktarılan üretim.</li><li><strong>İhtiyaç fazlası:</strong> Mahsuplaşma sonrası EPSAŞ’ın satın alacağı miktar.</li><li><strong>Alım fiyatı:</strong> Düzenlemeye tabi, PTF, PTF+YEKDEM veya manuel TL/MWh.</li><li><strong>Ödeme günü:</strong> Dönem sonundan sonraki gün farkıdır; tatilse ilk iş gününe ötelenir.</li><li><strong>Manuel sabit maliyet/vergi:</strong> Sözleşme toplamı için açık TL tutarıdır ve dönemlere paylaştırılır.</li></ul>
+<p>Öz tüketim ayrı nakit geliri değildir. Şebekeden satın alınmayan enerji miktarını ve buna bağlı ekonomik tasarrufu gösterir. İhtiyaç fazlası alımı ise EPSAŞ açısından ayrı nakit çıkışıdır.</p>
+<h2 id="16-teklifi-kaydetme-ve-finallestirme">16. Teklifi kaydetme ve finalleştirme</h2>
+<ul><li><strong>Taslak:</strong> Düzenlenebilir çalışma kaydıdır. Hesap sonucu saklanabilir ancak müşteriye gönderilecek değiştirilemez nihai teklif değildir.</li><li><strong>Nihai teklif:</strong> Müşteri, oran, fiyat, tarife, GES, ödeme planı ve hesaplama sonuçlarının değiştirilemez snapshot’ıdır.</li><li><strong>Değiştirilemez (immutable) nihai teklif:</strong> Nihai kayıt doğrudan düzenlenmez.</li><li><strong>Yeni versiyon:</strong> Teklif detayındaki <strong>Kopyala</strong> ile yeni çalışma açılır; değişiklik yeni versiyon olarak kaydedilir.</li></ul>
+<p>Final düğmesi engelliyse ekrandaki hata/uyarı kartını okuyun. Eksik müşteri, oran, aylık fiyat, tarife veya desteklenmeyen GES seçimi giderilmeden final kaydedilemez.</p>
+<h2 id="17-teklif-detayi">17. Teklif Detayı</h2>
+<p>Teklif Detayı üst kartlarında şunları gösterir:</p>
+<ul><li>Brüt müşteri faturası ve şebeke tüketimi</li><li>EPSAŞ net kârı ve oranı</li><li>Finansman etkisi: kredi ve valör</li><li>GES öz tüketim tasarrufu</li></ul>
+<p>Dönem tablosunda tüketim, PTF/YEKDEM ve kaynakları, aktif enerji, BTV, dağıtım, KDV, brüt toplam ve tarife kaynağı bulunur. <strong>Kullanılan politika</strong> kartı aktif enerji, vergi matrahları, finansman gün bazı ve GES modunu özetler. Alt bölümlerde mutabakat talimatları, piyasa verisi snapshot’ı ve CSV/JSON/Yazdır dışa aktarma seçenekleri yer alır.</p>
+<figure><img src="screenshots/12-offer-detail.png" alt="Teklif detayı ve hesap izi"><figcaption>Teklif detayı ve hesap izi</figcaption></figure>
+<h2 id="18-gerceklesme-senaryosu">18. Gerçekleşme senaryosu</h2>
+<ol><li><strong>Gerçekleşme Simülasyonu</strong> menüsünü açın.</li><li>Müşteri ve kaynak nihai teklifi seçin.</li><li>Senaryo adını yazıp <strong>Senaryo oluştur</strong> düğmesine basın.</li><li><strong>Hesaplama tarihi</strong>ni girin; gecikme bu tarihe kadar hesaplanır.</li><li>Dönemlerde gerçek PTF/YEKDEM veya tüketim override değerlerini girin.</li><li>Gerekirse senaryo teklif oranı, yıllık kredi ve valör oranlarını değiştirin.</li><li>Gerçek tahsilatları ilgili fatura, dönem veya vade dilimine bağlayın.</li><li>Kanal, komisyon ve komisyonu ödeyeni kontrol edin.</li><li>Gerçek müşteri iadesi varsa avansla sınırlı tutarı ekleyin.</li><li><strong>Senaryoyu kaydet</strong> düğmesine basın.</li></ol>
+<figure><img src="screenshots/13-realization-general.png" alt="Gerçekleşme genel özeti"><figcaption>Gerçekleşme genel özeti</figcaption></figure>
+<p>Kaynak teklif değişmez. Ekrandaki sarı bilgi kartı, değişikliklerin yalnız gerçekleşme/what-if senaryosunu etkilediğini açıkça belirtir.</p>
+<h3 id="gercek-tahsilat">Gerçek tahsilat</h3>
+<p>Tahsilat tarihi, tutarı, kanal, komisyon oranı, komisyonu ödeyen ve isteğe bağlı hedef fatura/vade girilir. İleri tarihli tahsilat hesaplama tarihine kadar sonuca alınmaz.</p>
+<figure><img src="screenshots/14-actual-payment.png" alt="Gerçek tahsilat girişi"><figcaption>Gerçek tahsilat girişi</figcaption></figure>
+<h3 id="gercek-musteri-iadesi">Gerçek müşteri iadesi</h3>
+<p>İade yalnız kullanılabilir müşteri avansı kadar eklenebilir. İade kâr değildir; avansı azaltır ve finansman takvimine nakit çıkışı olarak girer.</p>
+<figure><img src="screenshots/15-actual-refund.png" alt="Gerçek müşteri iadesi"><figcaption>Gerçek müşteri iadesi</figcaption></figure>
+<h2 id="19-gecikme-bedeli">19. Gecikme bedeli</h2>
+<p>Varsayılan politika:</p>
+<ul><li>Aylık oran <code>%5,55</code></li><li>Basit faiz</li><li>360 gün bazı</li><li>Hafta sonu ve tatiller dahil takvim günü</li><li>Gecikme KDV’sinde ilgili ana faturanın KDV oranı</li></ul>
+<pre><code class="language-text">Gecikme Bedeli = Açık Ana Para × Geciken Gün × (%5,55 / 100) × 12 / 360</code></pre>
+<p>Kısmi veya çoklu tahsilatta anapara segmentlere ayrılır. Her tahsilata kadar önceki açık ana para, tahsilattan sonra kalan anapara üzerinden faiz hesaplanır. Bu nedenle 100 TL borcun 10. gün 40 TL’si ödenirse ilk segment 100 TL, sonraki segment 60 TL üzerinden ilerler.</p>
+<p>Gecikme bedeli ve gecikme KDV’si sonraki faturada ayrı satırlardır. Gecikme bedeli BTV matrahına girmez; daha önce vergilenmiş satıra ikinci kez KDV uygulanmaz. Gecikme satırları kendi üzerinden yeniden gecikme üretmez. Son açık segmentler, hesaplama tarihinde <strong>Nihai Gecikme Bedeli Faturası</strong> olarak gösterilir.</p>
+<h2 id="20-odeme-kullanim-takvimi">20. Ödeme / Kullanım Takvimi</h2>
+<p>Takvim, planlanan teklif veya gerçekleşme senaryosu seçilerek açılır. Özet kartlarında müşteri nakit girişi, toplam çıkış, kredi, valör, minimum/maksimum bakiye, kapanış, açık alacak, avans, efektif oranlar ve açık finansman bulunur.</p>
+<figure><img src="screenshots/16-payment-calendar.png" alt="Ödeme ve kullanım takvimi"><figcaption>Ödeme ve kullanım takvimi</figcaption></figure>
+<p>Sütun grupları:</p>
+<ul><li><strong>Kullanım:</strong> Tarih, gün, günlük tüketim.</li><li><strong>Tedarikçi çıkışları:</strong> PTF, YEKDEM, dağıtım, sözleşme gücü.</li><li><strong>Vergiler:</strong> BTV ve KDV çıkışları.</li><li><strong>GES:</strong> İhtiyaç fazlası alımı/mahsubu.</li><li><strong>Müşteri:</strong> Brüt anapara, net nakit, gecikme tahsilatı, iade, ödeme kanalı maliyeti.</li><li><strong>Ledger:</strong> Avans ve açık alacak bakiyeleri, ödeme planı satırı.</li><li><strong>Finansman:</strong> Açılış, çıkışlar sonrası bakiye, faiz bazı, valör, kredi, kapanış.</li><li><strong>Not:</strong> Tedarikçi ödemesi, tahsilat, gecikme belgesi veya mutabakat açıklaması.</li></ul>
+<p>Takvim yeni bir ticari formül hesaplamaz; teklif veya gerçekleşme motorunun ürettiği olayları günlük sıraya koyar ve kullanıcıya gösterir.</p>
+<h2 id="21-aylik-kar">21. Aylık Kâr</h2>
+<ul><li><strong>Tahakkuk:</strong> Enerjinin ekonomik olarak ait olduğu ayın gelir ve maliyetleri.</li><li><strong>Nakit:</strong> Paranın gerçekten hareket ettiği ayın giriş ve çıkışları.</li><li><strong>Planlanan kâr:</strong> Teklif snapshot’ından üretilir.</li><li><strong>Gerçekleşen kâr:</strong> Seçilen gerçekleşme senaryosundan üretilir.</li><li><strong>Mutabık:</strong> Profit ledger bileşenleri ile aylık toplam farkı <code>1e-6</code> toleransı içindedir.</li><li><strong>Mutabakat farkı:</strong> Beklenen toplam ile aylık kırılım arasındaki farktır.</li><li><strong>Mutabakat hesaplanmadı:</strong> Eski snapshot gerekli reconciliation alanlarını taşımıyordur; otomatik olarak “mutabık” kabul edilmez.</li><li><strong>Legacy snapshot:</strong> Eski kaydın mevcut sayısal sonuçları korunur, eksik kaynak metadata’sı uyarıyla belirtilir.</li></ul>
+<figure><img src="screenshots/17-monthly-profit.png" alt="Aylık tahakkuk ve nakit"><figcaption>Aylık tahakkuk ve nakit</figcaption></figure>
+<p>Tahakkuk kârı ile nakit sonucu aynı olmak zorunda değildir. Örneğin satış Temmuz’a aitken müşteri Eylül’de ödeme yapabilir; tahakkuk Temmuz’da, nakit Eylül’de görünür.</p>
+<h2 id="22-raporlar">22. Raporlar</h2>
+<h3 id="22-1-musteri-teklif-raporu">22.1 Müşteri Teklif Raporu</h3>
+<p>Müşteri, teklif, kullanım dönemi, tarife/piyasa kaynağı, dönem faturaları, toplam tüketim, GES tasarrufu ve ödeme planını içerir. Net kâr, kredi maliyeti, profit ledger veya iç override nedeni gibi şirket içi finansal bilgiler bu raporda bulunmaz.</p>
+<figure><img src="screenshots/18-customer-report.png" alt="Müşteri teklif raporu"><figcaption>Müşteri teklif raporu</figcaption></figure>
+<h3 id="22-2-ic-finansal-analiz">22.2 İç Finansal Analiz</h3>
+<p>İç raporda şunlar bulunur:</p>
+<ul><li>Net kâr ve birim kâr</li><li>Kredi maliyeti ve valör geliri</li><li>Dengesizlik ve PİÜ</li><li>Ödeme kanalı maliyeti ve GES ihtiyaç fazlası alımı</li><li>Açık finansman, açık alacak ve müşteri avansı</li><li>Piyasa fiyatı ve tarife snapshot’ı</li><li>Manuel override nedeni</li><li>Mutabakat talimatları</li><li>Profit ledger</li><li>Aylık tahakkuk ve nakit</li><li>Gecikme belgeleri ve uyarılar</li></ul>
+<figure><img src="screenshots/19-internal-report.png" alt="İç finansal analiz raporu"><figcaption>İç finansal analiz raporu</figcaption></figure>
+<h3 id="22-3-disa-aktarma">22.3 Dışa aktarma</h3>
+<ul><li><strong>CSV:</strong> Tablo programlarında açılabilen satır çıktısı.</li><li><strong>JSON:</strong> Rapor modelinin yapılandırılmış çıktısı.</li><li><strong>PDF / Yazdır:</strong> Tarayıcının yazdırma penceresini açar; hedef olarak PDF kaydetme seçilebilir.</li></ul>
+<h2 id="23-backup-ve-restore">23. Backup ve restore</h2>
+<h3 id="tam-yedek-alma">Tam yedek alma</h3>
+<ol><li>Ayarlar → <strong>3.0 veri taşınabilirliği</strong> bölümüne gidin.</li><li><strong>Tam yedek indir</strong> düğmesine basın.</li><li>Dosyayı güvenli klasörde saklayın.</li></ol>
+<p>Dosya adı <code>k2-energipro-3.0-yedek-YYYY-MM-DD.json</code> biçimindedir. JSON zarfında <code>format: K2-ENERJIPRO</code>, <code>schemaVersion: 2</code> ve <code>appVersion: 3.0.3</code> bulunur.</p>
+<h3 id="geri-yukleme">Geri yükleme</h3>
+<ol><li><strong>Yedek geri yükle</strong> düğmesiyle JSON dosyasını seçin.</li><li>Önizlemede müşteri, taslak, teklif, gerçekleşme, aylık fiyat, legacy ve migration sayılarını kontrol edin.</li><li>Uyarıları okuyun.</li><li><strong>Önizlemeyi onayla ve geri yükle</strong> düğmesine basın.</li></ol>
+<figure><img src="screenshots/21-backup-preview.png" alt="Backup geri yükleme önizlemesi"><figcaption>Backup geri yükleme önizlemesi</figcaption></figure>
+<p>Restore önce dosya biçimini, schema sürümünü, tekrar eden kimlikleri, tarihleri, negatif veya sonlu olmayan değerleri ve müşteri/teklif bağlantılarını doğrular. Eski 3.0 yedek zarfı güncel biçime dönüştürülür; eski teklifin sayısal snapshot’ı korunur. Onaydan sonra tüm veri grupları tek bir veritabanı işlemi içinde yazılır. Geçersiz dosya önizleme aşamasında reddedildiği için mevcut veriler temizlenmez.</p>
+<blockquote>Büyük ayar, tarife veya portföy değişikliğinden önce mutlaka tam yedek alın.</blockquote>
+<h2 id="24-sik-karsilasilan-uyarilar">24. Sık karşılaşılan uyarılar</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Uyarı</th><th>Anlamı</th><th>Çözüm</th>
+</tr></thead><tbody>
+<tr><td>“... dönemi için geçerli tarife bulunamadı. Nihai teklif oluşturulamaz.”</td><td>Dönemi kapsayan tek aktif tarife yok</td><td>Ayarlar’da doğru müşteri tipi ve tarih aralığıyla tarife ekleyin</td></tr>
+<tr><td>“Tahmini PTF / YEKDEM eksik”</td><td>Sözleşme ayının tahmini fiyatı yok</td><td>Ayarlar’da ilgili aya tahmini fiyat girin</td></tr>
+<tr><td>“Saatlik mahsuplaşma ... desteklenmiyor”</td><td>Demo saatlik seri hesaplamıyor</td><td>Aylık veya manuel mahsuplaşma seçin</td></tr>
+<tr><td>“Faturadan mahsup ... desteklenmiyor”</td><td>Vergi ve matrah davranışı tanımlı değil</td><td>Ayrı nakit çıkışı seçin</td></tr>
+<tr><td>“Override nedeni zorunludur”</td><td>Tarife değeri elle değiştirildi</td><td>Dönemsel override nedenini yazın</td></tr>
+<tr><td>“Mutabakat hesaplanmadı”</td><td>Eski snapshot reconciliation kanıtı taşımıyor</td><td>Kaydı legacy olarak değerlendirin; yeni versiyon üretin</td></tr>
+<tr><td>“Legacy snapshot — tarife kaynak metadata’sı bulunmuyor”</td><td>Eski teklif yalnız sayısal değer taşıyor</td><td>Sayıları koruyun; kaynak denetimi için yeni teklif oluşturun</td></tr>
+<tr><td>“Açık finansman bakiyesi”</td><td>Hesaplama bitişinde nakit bakiyesi negatif</td><td>Tahsilat tarihlerini, kredi oranını ve bitiş tarihini inceleyin</td></tr>
+<tr><td>“Müşteri avansı”</td><td>Tahsilat alacağı aşmış</td><td>Mutabakat/iade kuralını ve sonraki fatura uygulamasını kontrol edin</td></tr>
+<tr><td>“Açık alacak”</td><td>Ana paranın tamamı tahsil edilmemiş</td><td>Gerçek tahsilat veya mutabakat kuralı girin</td></tr>
+<tr><td>“Yedek dosyası okunamadı”</td><td>JSON, schema veya referanslar geçersiz</td><td>Doğru K2 backup dosyasını seçin; mevcut veriyi silmeyin</td></tr>
+<tr><td>“Nihai teklif için müşteri zorunludur”</td><td>Taslak müşterisizdir</td><td>Bir müşteri seçin</td></tr>
+<tr><td>“Nihai teklif için teklif oranı zorunludur”</td><td>Teklif oranı boş</td><td>Teklif adımında oran girin</td></tr>
+</tbody></table></div>
+<h2 id="25-sik-sorulan-sorular">25. Sık sorulan sorular</h2>
+<ol><li><strong>PTF negatif olabilir mi?</strong> Evet. Ayarlar ekranı negatif PTF’ye izin verir.</li><li><strong>YEKDEM negatif olabilir mi?</strong> Hayır; sıfır veya pozitif olmalıdır.</li><li><strong>Eski teklif ayarlar değişince değişir mi?</strong> Hayır. Nihai teklif fiyat ve tarife snapshot’ını saklar.</li><li><strong>Kredi faizi neden devam ediyor?</strong> Günlük faiz bazı negatif kaldığı sürece 365 gün esasıyla bileşik işler.</li><li><strong>Bakiye pozitife çıkınca kredi durur mu?</strong> Evet. Sonraki gider bakiyeyi negatife düşürürse yeniden başlar.</li><li><strong>Aynı gün tahsilat neden valör üretmiyor?</strong> Günlük sıra tedarikçi çıkışları ve faizden sonra müşteri tahsilatını kapanışa ekler.</li><li><strong>Komisyon açık alacağı etkiler mi?</strong> Enerji anaparası tahsilatını değiştirmez; EPSAŞ veya müşteri kanal maliyeti olarak ayrı izlenir.</li><li><strong>Müşteri avansı kâr mıdır?</strong> Hayır. Kullanılana veya iade edilene kadar yükümlülüktür.</li><li><strong>GES öz tüketimi nakit girişi midir?</strong> Hayır. Şebekeden satın alınmayan enerji tasarrufudur.</li><li><strong>İhtiyaç fazlası GES nasıl görünür?</strong> EPSAŞ’ın tedarikçi nakit çıkışı ve kâr maliyeti olarak görünür.</li><li><strong>Gerçekleşen net kâr ile nakit neden farklıdır?</strong> Kâr ekonomik aya, nakit ödeme/tahsilat ayına aittir.</li><li><strong>Eski kayıt neden “Mutabakat hesaplanmadı” gösteriyor?</strong> Eski snapshot yeni reconciliation alanlarını taşımıyor olabilir.</li><li><strong>2027 teklifi neden engelleniyor?</strong> Varsayılan tarife 2026 sonunda biter; 2027 için geçerli tarife gerekir.</li><li><strong>Demo verisini temizlemek gerçek müşteriyi siler mi?</strong> Hayır; yalnız deterministik demo kimliklerini temizler.</li><li><strong>Dağıtım BTV’ye girer mi?</strong> Hayır. BTV yalnız aktif enerji satış bedeli üzerinden hesaplanır.</li><li><strong>Dağıtım KDV’ye girer mi?</strong> Evet; KDV matrahının bileşenidir.</li><li><strong>Kısmi tahsilatta gecikme nasıl hesaplanır?</strong> Her ödeme tarihine kadar açık kalan anapara ayrı segmenttir.</li><li><strong>Gecikme bedeli yeniden gecikme üretir mi?</strong> Hayır; gecikme satırları yeni gecikme anaparası değildir.</li><li><strong>Planlanan iade gerçek iade sayılır mı?</strong> Hayır. Gerçek iade ayrıca gerçekleşme ekranında girilir.</li><li><strong>CSV ile PDF aynı bilgiyi mi içerir?</strong> Aynı rapor kaynağından üretilir; düzen ve bazı sunum alanları formata göre değişebilir.</li><li><strong>Tarife override neden zorunludur?</strong> Standart katalogdan sapmanın denetlenebilir gerekçesini saklamak için.</li><li><strong>Yedek geri yükleme başarısız olursa veriler silinir mi?</strong> Dosya önizleme/doğrulama aşamasında reddedilirse mevcut veriler korunur.</li></ol>
+<h2 id="26-terimler-sozlugu">26. Terimler sözlüğü</h2>
+<div class="table-wrap"><table><thead><tr>
+<th>Terim</th><th>Açıklama</th>
+</tr></thead><tbody>
+<tr><td>EPSAŞ</td><td>Bu rehberde enerji satış ve finansman sonucunu izlenen şirket tarafı</td></tr>
+<tr><td>PTF</td><td>Piyasa Takas Fiyatı; enerji piyasasındaki temel fiyat girdisi</td></tr>
+<tr><td>YEKDEM</td><td>Yenilenebilir Enerji Kaynaklarını Destekleme Mekanizması maliyet bileşeni</td></tr>
+<tr><td>BTV</td><td>Belediye Tüketim Vergisi; aktif enerji satış bedeli üzerinden hesaplanır</td></tr>
+<tr><td>KDV</td><td>Katma Değer Vergisi; aktif enerji, dağıtım, güç ve BTV toplamına uygulanır</td></tr>
+<tr><td>Dağıtım bedeli</td><td>Şebeke kullanım/hizmet bedeli</td></tr>
+<tr><td>Sözleşme gücü</td><td>Sözleşmeye bağlı sabit güç bedeli</td></tr>
+<tr><td>Dengesizlik</td><td>Tahmin-gerçekleşme farkları için maliyet varsayımı</td></tr>
+<tr><td>PİÜ</td><td>Piyasa işlem ücreti</td></tr>
+<tr><td>Valör</td><td>Pozitif nakit bakiyesinin günlük getirisi</td></tr>
+<tr><td>Kredi maliyeti</td><td>Negatif nakit bakiyesinin günlük finansman maliyeti</td></tr>
+<tr><td>Brüt tahsilat</td><td>Müşterinin ödediği toplam tutar</td></tr>
+<tr><td>Net nakit</td><td>Kanal maliyeti ve aktarım sonrası EPSAŞ’a ulaşan tutar</td></tr>
+<tr><td>Açık alacak</td><td>Tahsil edilmemiş ana para</td></tr>
+<tr><td>Müşteri avansı</td><td>Mevcut alacağı aşan müşteri ödemesi</td></tr>
+<tr><td>Mutabakat</td><td>Fazla/eksik ödemenin taşıma, iade veya tahsilat kuralı</td></tr>
+<tr><td>Tahakkuk</td><td>Gelir/maliyetin ekonomik olarak ait olduğu dönem</td></tr>
+<tr><td>Nakit akışı</td><td>Paranın fiilen giriş ve çıkış tarihleri</td></tr>
+<tr><td>Snapshot</td><td>Teklif anındaki fiyat, tarife ve hesapların değiştirilemez kopyası</td></tr>
+<tr><td>İhtiyaç fazlası üretim</td><td>Mahsuplaşma sonrası şebekeye verilen ve satın alınan GES enerjisi</td></tr>
+<tr><td>Öz tüketim</td><td>GES üretiminin tesiste kullanılan kısmı</td></tr>
+<tr><td>Gecikme bedeli</td><td>Vadesi geçen açık anaparaya uygulanan basit faiz tutarı</td></tr>
+</tbody></table></div>
+<h2 id="27-kontrol-listeleri">27. Kontrol listeleri</h2>
+<h3 id="teklif-finallestirmeden-once">Teklif finalleştirmeden önce</h3>
+<ul><li class="task"><span class="checkbox"></span>Doğru müşteri seçildi.</li><li class="task"><span class="checkbox"></span>Kullanım tarihleri ve tüketim birimi kontrol edildi.</li><li class="task"><span class="checkbox"></span>Tüm ayların tahmini PTF/YEKDEM kaydı var.</li><li class="task"><span class="checkbox"></span>Her dönemi kapsayan tek aktif tarife var.</li><li class="task"><span class="checkbox"></span>Override varsa nedeni yazıldı.</li><li class="task"><span class="checkbox"></span>GES modu destekleniyor.</li><li class="task"><span class="checkbox"></span>Ödeme planı, kanal ve komisyon doğru.</li><li class="task"><span class="checkbox"></span>Mutabakat kuralı sözleşmeyle uyumlu.</li><li class="task"><span class="checkbox"></span>Kredi, valör ve tedarikçi ödeme günleri kontrol edildi.</li><li class="task"><span class="checkbox"></span>Teklif oranı ve başabaş sonucu incelendi.</li></ul>
+<h3 id="gerceklesme-kaydetmeden-once">Gerçekleşme kaydetmeden önce</h3>
+<ul><li class="task"><span class="checkbox"></span>Doğru kaynak teklif ve versiyon seçildi.</li><li class="task"><span class="checkbox"></span>Hesaplama tarihi doğru.</li><li class="task"><span class="checkbox"></span>Gerçek fiyat/tüketim override’ları ilgili dönemlere girildi.</li><li class="task"><span class="checkbox"></span>Tahsilatlar doğru fatura veya vade dilimine bağlandı.</li><li class="task"><span class="checkbox"></span>Komisyon ve net nakit kontrol edildi.</li><li class="task"><span class="checkbox"></span>İade kullanılabilir avansı aşmıyor.</li><li class="task"><span class="checkbox"></span>Açık alacak, gecikme ve açık finansman incelendi.</li></ul>
+<h3 id="rapor-gondermeden-once">Rapor göndermeden önce</h3>
+<ul><li class="task"><span class="checkbox"></span>Müşteri raporu ile iç rapor karıştırılmadı.</li><li class="task"><span class="checkbox"></span>Doğru teklif/senaryo seçildi.</li><li class="task"><span class="checkbox"></span>Sürüm <code>3.0.3</code> görünüyor.</li><li class="task"><span class="checkbox"></span>Müşteri raporunda iç finansal alan yok.</li><li class="task"><span class="checkbox"></span>Tarife ve piyasa kaynakları kontrol edildi.</li><li class="task"><span class="checkbox"></span>PDF önizlemesinde tablo kesilmesi yok.</li></ul>
+<h3 id="yedek-geri-yuklemeden-once">Yedek geri yüklemeden önce</h3>
+<ul><li class="task"><span class="checkbox"></span>Mevcut sistemden güncel tam yedek alındı.</li><li class="task"><span class="checkbox"></span>Dosya K2 EnerjiPro backup dosyası.</li><li class="task"><span class="checkbox"></span>Önizleme kayıt sayıları beklenen değerlerle uyumlu.</li><li class="task"><span class="checkbox"></span>Legacy/migration uyarıları okundu.</li><li class="task"><span class="checkbox"></span>Yanlış tarayıcı profili kullanılmıyor.</li><li class="task"><span class="checkbox"></span>Onaydan sonra mevcut koleksiyonların değişeceği biliniyor.</li></ul>
+<h2 id="28-ekler">28. Ekler</h2>
+<h3 id="ek-a-destek-matrisi">Ek A — Destek matrisi</h3>
+<div class="table-wrap"><table><thead><tr>
+<th>Alan</th><th>Demo desteği</th>
+</tr></thead><tbody>
+<tr><td>Müşteri ve teklif</td><td>Var</td></tr>
+<tr><td>Çok aylı PTF/YEKDEM</td><td>Var</td></tr>
+<tr><td>Tarihli tarife snapshot’ı</td><td>Var</td></tr>
+<tr><td>Gelişmiş ödeme planı ve mutabakat</td><td>Var</td></tr>
+<tr><td>Günlük kredi/valör</td><td>Var</td></tr>
+<tr><td>Basit ve advanced GES</td><td>Var; saatlik ve invoice-offset hariç</td></tr>
+<tr><td>Gerçekleşme ve gecikme</td><td>Var</td></tr>
+<tr><td>Takvim, aylık kâr, grafik, karşılaştırma</td><td>Var</td></tr>
+<tr><td>Müşteri/iç rapor</td><td>Var</td></tr>
+<tr><td>Backup/restore ve legacy migration</td><td>Var</td></tr>
+<tr><td>Backend, giriş, merkezi veri</td><td>Yok</td></tr>
+<tr><td>Canlı EPİAŞ/e-fatura</td><td>Yok</td></tr>
+</tbody></table></div>
+<h3 id="ek-b-formul-ozeti">Ek B — Formül özeti</h3>
+<pre><code class="language-text">Aktif taban = PTF + YEKDEM
+Aktif satış = aktif taban + teklif marjı
+BTV = aktif satış × BTV oranı
+KDV = (aktif satış + dağıtım + güç + BTV) × KDV oranı
+Gecikme = açık anapara × gün × aylık oran × 12 / 360
+Kredi = negatif günlük faiz bazı × yıllık kredi oranı / 365
+Valör = pozitif günlük faiz bazı × yıllık valör oranı / 365</code></pre>
+<h3 id="ek-c-demo-veri-seti-ozeti">Ek C — Demo veri seti özeti</h3>
+<div class="table-wrap"><table><thead><tr>
+<th>Tür</th><th>Kayıtlar</th>
+</tr></thead><tbody>
+<tr><td>Müşteri</td><td>Demo Anadolu Sanayi; Demo Merkez Ticarethane; Demo GES Üretim Tesisi</td></tr>
+<tr><td>Teklif</td><td>Standart Vadeli; Tam Ön Ödeme; Kısmi Avans + Kalan; Komisyonlu Kart; Advanced GES; Legacy Snapshot</td></tr>
+<tr><td>Gerçekleşme</td><td>Demo Gecikmeli Tahsilat ve Açık Alacak</td></tr>
+<tr><td>Piyasa ayı</td><td>2026-07 ve 2026-08 tahmin/gerçekleşen PTF-YEKDEM</td></tr>
+</tbody></table></div>
+<h3 id="ek-d-surum-bilgileri">Ek D — Sürüm bilgileri</h3>
+<ul><li>Uygulama: 3.0.3</li><li>Hesaplama politikası: K2-ENERJIPRO-3.0.0</li><li>Backup schema: 2</li><li>IndexedDB adı: <code>k2-energipro-3</code></li><li>Belge: 22 Temmuz 2026</li></ul>
+<h3 id="ek-e-bilinen-sinirlamalar">Ek E — Bilinen sınırlamalar</h3>
+<p>Bu belgenin 2. bölümündeki ürün sınırlarına ek olarak, uygulama build çıktısı tek büyük JavaScript paketi üretir; ilk açılış performansı düşük cihazlarda etkilenebilir. Bu durum hesap doğruluğunu değiştirmez.</p>
+<h3 id="ek-f-icerik-dogruluk-matrisi">Ek F — İçerik doğruluk matrisi</h3>
+<div class="table-wrap"><table><thead><tr>
+<th>Rehber bölümü</th><th>İlgili route</th><th>Browser ile doğrulandı</th><th>Ekran görüntüsü</th><th>Not</th>
+</tr></thead><tbody>
+<tr><td>Kapak / ilk açılış</td><td><code>/</code></td><td>Evet</td><td>01</td><td>Boş IndexedDB origin’i</td></tr>
+<tr><td>Demo sınırları</td><td><code>/settings</code></td><td>Evet</td><td>22</td><td>Gerçek UI listesi</td></tr>
+<tr><td>Başlatma</td><td><code>/</code></td><td>Evet</td><td>01</td><td>Dev sunucu <code>localhost:4173</code></td></tr>
+<tr><td>Demo yükleme</td><td><code>/settings#demo-data</code></td><td>Evet</td><td>02</td><td>Uyarı ve başarı bildirimi</td></tr>
+<tr><td>Menü yapısı</td><td>Tüm route’lar</td><td>Evet</td><td>01–22</td><td>15 route kaynakla karşılaştırıldı</td></tr>
+<tr><td>Müşteri</td><td><code>/customers</code></td><td>Evet</td><td>03–04</td><td>Form alanları ve demo kartları</td></tr>
+<tr><td>Teklif genel</td><td><code>/cost-calculation</code></td><td>Evet</td><td>05</td><td>Adım 1</td></tr>
+<tr><td>Piyasa fiyatı</td><td><code>/cost-calculation</code>, <code>/settings</code></td><td>Evet</td><td>06</td><td>Tahmin hazır/eksik durumu</td></tr>
+<tr><td>Tarife</td><td><code>/cost-calculation</code>, <code>/settings</code></td><td>Evet</td><td>07, 20</td><td>Dönem ve katalog</td></tr>
+<tr><td>Ödeme planı</td><td><code>/cost-calculation</code></td><td>Evet</td><td>08</td><td>Dokuz şablon</td></tr>
+<tr><td>Mutabakat</td><td><code>/cost-calculation</code></td><td>Evet</td><td>09</td><td>Gelişmiş görünüm</td></tr>
+<tr><td>GES</td><td><code>/cost-calculation</code></td><td>Evet</td><td>10</td><td>Advanced alanlar ve sınır uyarısı</td></tr>
+<tr><td>Hesaplama sonucu</td><td><code>/offers/demo-offer-standard</code></td><td>Evet</td><td>11</td><td>Demo snapshot toplamları</td></tr>
+<tr><td>Teklif detayı</td><td><code>/offers/demo-offer-standard</code></td><td>Evet</td><td>12</td><td>Politika ve kaynak izi</td></tr>
+<tr><td>Gerçekleşme</td><td><code>/realization/demo-scenario-realization</code></td><td>Evet</td><td>13</td><td>Plan/actual özet</td></tr>
+<tr><td>Gerçek tahsilat</td><td>Aynı route</td><td>Evet</td><td>14</td><td>Kısmi/çoklu tahsilat formu</td></tr>
+<tr><td>Gerçek iade</td><td>Aynı route</td><td>Evet</td><td>15</td><td>Kullanılabilir avans</td></tr>
+<tr><td>Gecikme</td><td>Aynı route</td><td>Evet</td><td>13–15</td><td>Dönem ve nihai belgeler DOM’da doğrulandı</td></tr>
+<tr><td>Takvim</td><td><code>/payment-calendar?...</code></td><td>Evet</td><td>16</td><td>Gerçekleşme kaynağı ve hareket günleri</td></tr>
+<tr><td>Aylık kâr</td><td><code>/monthly-profit</code></td><td>Evet</td><td>17</td><td>Planlanan + gerçekleşen seçim</td></tr>
+<tr><td>Müşteri raporu</td><td><code>/reports</code></td><td>Evet</td><td>18</td><td>İç kâr alanı yok</td></tr>
+<tr><td>İç rapor</td><td><code>/reports</code></td><td>Evet</td><td>19</td><td>Net kâr ve profit ledger var</td></tr>
+<tr><td>Backup/restore</td><td><code>/settings#backup</code></td><td>Evet</td><td>21</td><td>Uygulama export’u yeniden seçildi</td></tr>
+<tr><td>Sık uyarılar / SSS / sözlük</td><td>İlgili route’lar</td><td>Evet</td><td>02, 07, 10, 13, 21, 22</td><td>UI metinleri kaynakla karşılaştırıldı</td></tr>
+<tr><td>Kontrol listeleri / ekler</td><td>Tüm akış</td><td>Evet</td><td>01–22</td><td>E2E 6/6 ile çapraz kontrol</td></tr>
+</tbody></table></div>
+<hr>
+<p><strong>Belge sonu — K2 EnerjiPro 3.0.3 Demo Kullanıcı Rehberi</strong></p>
+  </main>
+</body>
+</html>
