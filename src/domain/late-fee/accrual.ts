@@ -148,7 +148,10 @@ export const accrueMonthlyLateFeeDocuments = (
       const id = `late_fee_${bucket.installment.id}_${bucket.issueDate}`;
       const collectedAtIssue = bucket.installment.allocations
         .filter((allocation) => allocation.date <= bucket.issueDate)
-        .reduce((sum, allocation) => sum + allocation.amount, 0);
+        .reduce((sum, allocation) => sum + allocation.amount, 0) +
+        (bucket.installment.advanceApplications ?? [])
+          .filter((application) => application.applicationDate <= bucket.issueDate)
+          .reduce((sum, application) => sum + application.amount, 0);
       const openPrincipal = Math.max(0, bucket.installment.principalAmount - collectedAtIssue);
       const lateFeeVat = bucket.lateFee * sourceVatRate;
       return {

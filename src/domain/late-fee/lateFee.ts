@@ -103,8 +103,18 @@ export const calculateReceivableInstallmentDelinquency = (
     receivableInstallmentId: allocation.receivableInstallmentId,
     date: allocation.date,
     amount: allocation.amount,
-    channel: 'other',
-  }));
+    channel: 'other' as const,
+  })).concat(
+    (installment.advanceApplications ?? []).map((application) => ({
+      id: application.id,
+      invoiceId: application.targetInvoiceId,
+      receivableInstallmentId: installment.id,
+      date: application.applicationDate,
+      amount: application.amount,
+      channel: 'other' as const,
+      note: 'Müşteri avansı faturaya uygulandı; nakit olayı değildir.',
+    })),
+  );
   const effectivePayments = payments.filter((payment) => payment.date <= calculationDate);
   const segments = calculateLateFeeSegments(
     installment.principalAmount,

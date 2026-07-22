@@ -37,6 +37,8 @@ const sum = <T>(items: T[], value: (item: T) => number): number =>
 
 export const LEGACY_GES_WARNING =
   'Eski teklif snapshot’ında dönemsel GES verisi bulunmadığı için ihtiyaç fazlası alımı güvenli legacy yöntemle yeniden oluşturuldu.';
+export const LEGACY_TARIFF_WARNING =
+  'Eski teklif snapshot’ında dönemsel tarife metadata’sı bulunmadığı için KDV/BTV oranlarında legacy state değerleri kullanıldı.';
 
 const allocateLegacyGesAmount = (periods: BillingPeriod[], total: number): number[] => {
   if (periods.length === 0) return [];
@@ -57,6 +59,7 @@ interface ScenarioPeriodGesData {
   gridExportMwh: number;
   excessProductionMwh: number;
   excessPurchaseAmount?: number;
+  manualTaxAmount: number;
 }
 
 const scenarioPeriod = (
@@ -86,7 +89,8 @@ const scenarioPeriod = (
     marketPrice.yekdemUnitPrice,
   );
   const excessPurchaseAmount =
-    gesData.excessPurchaseAmount ?? gesData.excessProductionMwh * excessPurchasePrice;
+    gesData.excessPurchaseAmount ??
+    gesData.excessProductionMwh * excessPurchasePrice + gesData.manualTaxAmount;
   return {
     ...period,
     marketPriceMonth: marketPrice.month,
@@ -154,6 +158,13 @@ export const calculateRealization = (
     source.periods,
     Math.max(0, source.totals.excessProductionPurchase),
   );
+  const manualGesTaxAmounts = allocateLegacyGesAmount(
+    source.periods,
+    state.ges.excessProductionTaxMode === 'manual'
+      ? Math.max(0, state.ges.manualTaxAmountTl ?? 0)
+      : 0,
+  );
+  const legacyTariffUsed = source.periods.some((period) => !period.tariffSnapshot);
   const adjustedPeriods = periodContexts.map(({ period, override, marketPrice }, index) => {
     const legacyPhysicalMissing =
       state.ges.mode === 'advanced_metering' &&
@@ -171,8 +182,8 @@ export const calculateRealization = (
     return scenarioPeriod(
       period,
       override?.scenarioOfferRate ?? state.offerRate ?? 0,
-      state.btvRate,
-      state.kdvRate,
+      period.tariffSnapshot?.btvRate ?? state.btvRate,
+      period.tariffSnapshot?.kdvRate ?? state.kdvRate,
       state.imbalanceRate,
       state.piuRate,
       marketPrice,
@@ -183,15 +194,51 @@ export const calculateRealization = (
           period.excessProductionMwh ??
           (useAmountFallback ? 0 : (reconstructed?.excessProductionMwh ?? 0)),
         excessPurchaseAmount: useAmountFallback ? legacyGesAmounts[index] : undefined,
+        manualTaxAmount: useAmountFallback ? 0 : (manualGesTaxAmounts[index] ?? 0),
       },
     );
   });
-  const sourceInstallments = buildReceivableInstallments(adjustedPeriods, source.plannedPayments);
-  const receivableLedger = allocatePaymentsToReceivables(
+  const reconciliation = state.paymentPlan.reconciliation;
+  const autoApplyAdvance =
+    reconciliation.enabled &&
+    (reconciliation.overpaymentAction === 'carry_forward' ||
+      reconciliation.overpaymentAction === 'refund_at_contract_end');
+  const sourceInstallments = buildReceivableInstallments(
+    adjustedPeriods,
+    source.plannedPayments,
+    source.reconciliationInstructions ?? [],
+  );
+  const baseReceivableLedger = allocatePaymentsToReceivables(
     sourceInstallments,
     scenario.actualPayments,
     scenario.asOfDate,
+    { autoApplyAdvance },
   );
+  const effectiveRefunds = [...(scenario.actualRefunds ?? [])]
+    .filter((refund) => refund.date <= scenario.asOfDate && refund.amount > 0)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  let refundedAdvance = 0;
+  for (const refund of effectiveRefunds) {
+    const ledgerAtRefundDate = allocatePaymentsToReceivables(
+      sourceInstallments,
+      scenario.actualPayments,
+      refund.date,
+      { autoApplyAdvance },
+    );
+    const availableAdvance = ledgerAtRefundDate.customerAdvance - refundedAdvance;
+    if (refund.amount > availableAdvance + 1e-6)
+      throw new Error(
+        `Gerçek müşteri iadesi kullanılabilir müşteri avansını aşamaz. Kullanılabilir: ${Math.max(
+          0,
+          availableAdvance,
+        ).toFixed(2)} TL.`,
+      );
+    refundedAdvance += refund.amount;
+  }
+  const receivableLedger = {
+    ...baseReceivableLedger,
+    customerAdvance: Math.max(0, baseReceivableLedger.customerAdvance - refundedAdvance),
+  };
   const effectivePayments = scenario.actualPayments.filter(
     (payment) => payment.date <= scenario.asOfDate && payment.amount > 0,
   );
@@ -223,6 +270,16 @@ export const calculateRealization = (
       note: payment.note,
     };
   });
+  const actualRefundEvents: CashEvent[] = effectiveRefunds.map((refund) => ({
+    id: refund.id,
+    date: refund.date,
+    type: 'customer_refund',
+    direction: 'out',
+    amount: refund.amount,
+    periodId: refund.sourcePeriodId,
+    label: 'Gerçek müşteri iadesi',
+    note: refund.note,
+  }));
   const actualExcessProductionPurchase = sum(
     adjustedPeriods,
     (period) => period.excessPurchaseAmount ?? 0,
@@ -233,7 +290,7 @@ export const calculateRealization = (
     actualExcessProductionPurchase,
     holidays,
   ).filter((event) => event.date <= scenario.asOfDate);
-  const actualCashEvents = [...supplierEvents, ...actualPaymentEvents].sort((a, b) =>
+  const actualCashEvents = [...supplierEvents, ...actualPaymentEvents, ...actualRefundEvents].sort((a, b) =>
     a.date.localeCompare(b.date),
   );
   const effectiveCreditRate = scenario.financingOverrides?.creditRate ?? state.creditRate;
@@ -403,8 +460,10 @@ export const calculateRealization = (
     actualCashEvents,
     marketPriceWarnings: [
       ...(legacyGesUsed ? [LEGACY_GES_WARNING] : []),
+      ...(legacyTariffUsed ? [LEGACY_TARIFF_WARNING] : []),
       ...new Set(periods.flatMap((period) => period.marketPriceWarnings ?? [])),
     ],
+    actualRefundTotal: refundedAdvance,
   };
 };
 
@@ -425,6 +484,7 @@ export const createRealizationScenario = (
     asOfDate: sourceOffer.stateSnapshot.usageEnd,
     periodOverrides: [],
     actualPayments: [],
+    actualRefunds: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -435,3 +495,5 @@ export const createRealizationScenario = (
 };
 
 export const newActualPaymentId = (): string => createId('actual_payment');
+
+export const newActualRefundId = (): string => createId('actual_refund');

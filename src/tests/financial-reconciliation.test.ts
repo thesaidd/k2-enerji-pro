@@ -147,6 +147,7 @@ describe('gerçekleşme finansman ufku ve override', () => {
     const plan = createPaymentPlan('standard_deferred');
     plan.rows[0]!.amountType = 'period_fixed_tl';
     plan.rows[0]!.amountValue = 1;
+    plan.reconciliation.underpaymentAction = 'leave_open';
     const result = offerFor({ paymentPlan: plan }).resultSnapshot;
     expect(result.openFinancingBalance).toBeGreaterThan(0);
     expect(result.endingCashBalance).toBeLessThan(0);
@@ -253,6 +254,9 @@ describe('gerçek tahsilat kanal maliyeti', () => {
 
   it('avans kalan tahsilatın kanal maliyetini sözleşme toplamından kaybetmez', () => {
     const offer = offerFor();
+    offer.stateSnapshot.paymentPlan.reconciliation.enabled = false;
+    offer.paymentPlanSnapshot.reconciliation.enabled = false;
+    offer.resultSnapshot.state.paymentPlan.reconciliation.enabled = false;
     const payment: ActualPayment = {
       id: 'advance',
       date: '2026-06-01',

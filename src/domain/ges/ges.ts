@@ -10,6 +10,28 @@ export interface GesPeriodResult {
   excessPurchaseAmount: number;
 }
 
+export const validateGesForDemo = (ges: GesSettings): string[] => {
+  if (ges.mode === 'simple_self_consumption') return [];
+  const errors: string[] = [];
+  if ((ges.nettingMethod ?? 'monthly') === 'hourly')
+    errors.push(
+      'Saatlik mahsuplaşma bu demo sürümünde desteklenmiyor. Saatlik üretim ve tüketim serisi gerektirir.',
+    );
+  if ((ges.settlementMode ?? 'cash_outflow') === 'invoice_offset')
+    errors.push('Faturadan mahsup bu demo sürümünde desteklenmiyor; vergi ve matrah etkileri tanımlı değil.');
+  if (
+    (ges.priceType === 'manual' || ges.priceType === 'regulated') &&
+    (!(ges.excessPurchasePrice != null) || !Number.isFinite(ges.excessPurchasePrice))
+  )
+    errors.push('Manuel/düzenlemeye tabi GES alım fiyatı açıkça girilmelidir.');
+  if (
+    ges.excessProductionTaxMode === 'manual' &&
+    (!(ges.manualTaxAmountTl != null) || !Number.isFinite(ges.manualTaxAmountTl))
+  )
+    errors.push('Manuel GES vergi modu için sabit TL vergi/maliyet tutarı girilmelidir.');
+  return errors;
+};
+
 export const resolveGesExcessPurchasePrice = (
   ges: GesSettings,
   ptfTlMwh: number,
@@ -57,11 +79,15 @@ export const calculateGesPeriod = (
       : ges.gridImportMwh * periodShare,
   );
   const gridExportMwh = Math.max(0, (ges.gridExportMwh ?? 0) * periodShare);
-  const excessProductionMwh = Math.max(
-    0,
-    (ges.excessAfterNettingMwh ?? gridExportMwh) * periodShare,
-  );
+  const nettingMethod = ges.nettingMethod ?? 'monthly';
+  const contractExcess =
+    nettingMethod === 'manual'
+      ? (ges.excessAfterNettingMwh ?? 0)
+      : (ges.excessAfterNettingMwh ?? Math.max(0, (ges.gridExportMwh ?? 0) - (ges.gridImportMwh ?? 0)));
+  const excessProductionMwh = Math.max(0, contractExcess * periodShare);
   const price = resolveGesExcessPurchasePrice(ges, ptfTlMwh, yekdemTlMwh);
+  const manualTax =
+    ges.excessProductionTaxMode === 'manual' ? (ges.manualTaxAmountTl ?? 0) * periodShare : 0;
   return {
     grossConsumptionMwh,
     selfConsumptionMwh,
@@ -69,6 +95,6 @@ export const calculateGesPeriod = (
     gridExportMwh,
     excessProductionMwh,
     excessPurchasePrice: price,
-    excessPurchaseAmount: excessProductionMwh * price,
+    excessPurchaseAmount: excessProductionMwh * price + manualTax,
   };
 };

@@ -224,4 +224,51 @@ describe('gerçekleşen ödeme/kullanım takvimi', () => {
     expect(actual.summary.totalCustomerCashIn).not.toBe(planned.summary.totalCustomerCashIn);
     expect(actual.sourceId).toBe(scenario.id);
   });
+
+  it('gerçek müşteri iadesini günlük avans bakiyesinden düşer', () => {
+    const offer = offerWithPlan();
+    const gross = offer.resultSnapshot.periods[0]!.grossInvoice;
+    const base = {
+      id: 'scenario_refund',
+      sourceCustomerId: offer.customerId,
+      sourceOfferId: offer.id,
+      sourceOfferVersion: offer.version,
+      sourceOfferSnapshot: structuredClone(offer),
+      name: 'İade takvimi',
+      asOfDate: '2026-08-25',
+      periodOverrides: [],
+      actualPayments: [
+        {
+          id: 'actual_overpayment',
+          invoiceId: offer.resultSnapshot.periods[0]!.id,
+          date: '2026-08-20',
+          amount: gross + 10_000,
+          channel: 'eft' as const,
+          commissionRate: 0,
+          commissionBearer: 'epsas' as const,
+        },
+      ],
+      actualRefunds: [],
+      createdAt: '2026-07-01',
+      updatedAt: '2026-07-01',
+    } satisfies Omit<RealizationScenario, 'resultSnapshot'>;
+    const advanceBeforeRefund = calculateRealization(base, 5.55, monthlyPrices).receivableLedger
+      .customerAdvance;
+    const withRefund = {
+      ...base,
+      actualRefunds: [
+        { id: 'refund_1', date: '2026-08-25', amount: 2_000, note: 'Kısmi iade' },
+      ],
+    };
+    const scenario: RealizationScenario = {
+      ...withRefund,
+      resultSnapshot: calculateRealization(withRefund, 5.55, monthlyPrices),
+    };
+    const calendar = buildRealizationPaymentCalendar(scenario, 'ABC Sanayi');
+    const refundDay = calendar.rows.find((row) => row.date === '2026-08-25')!;
+
+    expect(refundDay.customerRefund).toBeCloseTo(2_000, 8);
+    expect(refundDay.customerAdvance).toBeCloseTo(advanceBeforeRefund - 2_000, 8);
+    expect(calendar.summary.customerAdvance).toBeCloseTo(advanceBeforeRefund - 2_000, 8);
+  });
 });

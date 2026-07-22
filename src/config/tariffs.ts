@@ -1,3 +1,5 @@
+import type { TariffVersion } from '../types';
+
 export interface TariffProfile {
   key: string;
   label: string;
@@ -119,8 +121,25 @@ export const TARIFFS: TariffProfile[] = [
   },
 ];
 
-export const getTariff = (key: string): TariffProfile =>
-  TARIFFS.find((tariff) => tariff.key === key) ?? TARIFFS[8]!;
+export const getTariff = (key: string): TariffProfile => {
+  const tariff = TARIFFS.find((candidate) => candidate.key === key);
+  if (!tariff) throw new Error(`Bilinmeyen tarife müşteri tipi: ${key}`);
+  return tariff;
+};
+
+export const DEFAULT_TARIFF_VERSIONS: TariffVersion[] = TARIFFS.map((tariff) => ({
+  id: `tariff-2026-${tariff.key}`,
+  customerType: tariff.key,
+  validFrom: '2026-01-01',
+  validTo: '2026-12-31',
+  kdvRate: tariff.kdvDefault,
+  btvRate: tariff.btvDefault,
+  distributionUnitTlMwh: tariff.distributionTlMwh,
+  sourceLabel: '2026 demo referans tarife tablosu',
+  versionLabel: '2026.1',
+  active: true,
+  updatedAt: '2026-01-01T00:00:00.000Z',
+}));
 
 export const applyTariffDefaults = (key: string, hasDistribution = true) => {
   const tariff = getTariff(key);

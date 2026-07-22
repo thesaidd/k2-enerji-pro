@@ -48,13 +48,10 @@ const plannedLedger = (
   const installments = buildReceivableInstallments(
     offer.resultSnapshot.periods,
     offer.resultSnapshot.plannedPayments,
+    offer.resultSnapshot.reconciliationInstructions ?? [],
   );
   const payments: ActualPayment[] = offer.resultSnapshot.plannedPayments.map((payment) => ({
     id: payment.id,
-    invoiceId: payment.periodId,
-    receivableInstallmentId: installments.find(
-      (installment) => installment.sourcePlannedPaymentId === payment.id,
-    )?.id,
     date: payment.transactionDate,
     amount: payment.principalAmount,
     channel: payment.paymentChannel,
@@ -64,7 +61,12 @@ const plannedLedger = (
     .sort()
     .at(-1)!;
   return {
-    ledger: allocatePaymentsToReceivables(installments, payments, asOfDate),
+    ledger: allocatePaymentsToReceivables(installments, payments, asOfDate, {
+      autoApplyAdvance:
+        offer.paymentPlanSnapshot.reconciliation.enabled &&
+        (offer.paymentPlanSnapshot.reconciliation.overpaymentAction === 'carry_forward' ||
+          offer.paymentPlanSnapshot.reconciliation.overpaymentAction === 'refund_at_contract_end'),
+    }),
     payments,
   };
 };
@@ -86,6 +88,18 @@ const fallbackActualCashEvents = (scenario: RealizationScenario): CashEvent[] =>
       label: 'Gerçek müşteri tahsilatı',
       note: payment.note,
     })),
+  ...(scenario.actualRefunds ?? [])
+    .filter((refund) => refund.date <= scenario.asOfDate && refund.amount > 0)
+    .map<CashEvent>((refund) => ({
+      id: refund.id,
+      date: refund.date,
+      type: 'customer_refund',
+      direction: 'out',
+      amount: refund.amount,
+      periodId: refund.sourcePeriodId,
+      label: 'Gerçek müşteri iadesi',
+      note: refund.note,
+    })),
 ];
 
 const receivableBalances = (
@@ -93,27 +107,52 @@ const receivableBalances = (
   installments: ReceivableInstallment[],
   ledger: ReceivableLedger,
   payments: ActualPayment[],
+  refunds: CashEvent[],
 ): { customerAdvance: number; openReceivable: number } => {
-  let customerAdvance = 0;
   let openReceivable = 0;
   for (const installment of installments) {
     const allocated = sum(
       installment.allocations.filter((allocation) => allocation.date <= date),
       (allocation) => allocation.amount,
     );
-    if (date < installment.dueDate) customerAdvance += allocated;
-    else openReceivable += Math.max(0, installment.principalAmount - allocated);
-  }
-  for (const payment of payments.filter((item) => item.date <= date)) {
-    const allocated = sum(
-      ledger.allocations.filter(
-        (allocation) => allocation.paymentId === payment.id && allocation.date <= date,
+    const advanceApplied = sum(
+      (installment.advanceApplications ?? []).filter(
+        (application) => application.applicationDate <= date,
       ),
-      (allocation) => allocation.amount,
+      (application) => application.amount,
     );
-    customerAdvance += Math.max(0, payment.amount - allocated);
+    if (date >= installment.dueDate)
+      openReceivable += Math.max(0, installment.principalAmount - allocated - advanceApplied);
   }
-  return { customerAdvance, openReceivable };
+  const advanceLots = ledger.advanceLots ?? [];
+  let customerAdvance = sum(
+    advanceLots.filter((lot) => lot.availableDate <= date),
+    (lot) =>
+      Math.max(
+        0,
+        lot.originalAmount -
+          sum(
+            lot.applications.filter((application) => application.applicationDate <= date),
+            (application) => application.amount,
+          ),
+      ),
+  );
+  if (advanceLots.length === 0) {
+    for (const payment of payments.filter((item) => item.date <= date)) {
+      const allocated = sum(
+        ledger.allocations.filter(
+          (allocation) => allocation.paymentId === payment.id && allocation.date <= date,
+        ),
+        (allocation) => allocation.amount,
+      );
+      customerAdvance += Math.max(0, payment.amount - allocated);
+    }
+  }
+  const refunded = sum(
+    refunds.filter((event) => event.date <= date),
+    (event) => event.amount,
+  );
+  return { customerAdvance: Math.max(0, customerAdvance - refunded), openReceivable };
 };
 
 interface CalendarSource {
@@ -179,6 +218,7 @@ const buildModel = (source: CalendarSource): PaymentCalendarModel => {
       source.ledger.installments,
       source.ledger,
       source.payments,
+      source.cashEvents.filter((event) => event.type === 'customer_refund'),
     );
     rows.push({
       date,
@@ -259,6 +299,19 @@ export const buildPlannedPaymentCalendar = (
       ...(paymentDescriptions.get(payment.settlementDate) ?? []),
       `${payment.planRowName} · ${payment.paymentChannel}`,
     ]);
+  const annotations = new Map<string, string[]>();
+  for (const item of offer.resultSnapshot.reconciliationInstructions ?? []) {
+    const date = item.scheduledDate ?? item.referenceDate;
+    annotations.set(date, [
+      ...(annotations.get(date) ?? []),
+      `Planlanan mutabakat · ${item.note} · ${item.amount.toFixed(2)} TL`,
+    ]);
+  }
+  for (const application of ledger.advanceApplications ?? [])
+    annotations.set(application.applicationDate, [
+      ...(annotations.get(application.applicationDate) ?? []),
+      `Müşteri avansı faturaya uygulandı · ${application.amount.toFixed(2)} TL · nakit değildir`,
+    ]);
   return buildModel({
     sourceType: 'planned_offer',
     sourceId: offer.id,
@@ -282,7 +335,7 @@ export const buildPlannedPaymentCalendar = (
     ledger,
     payments,
     paymentDescriptions,
-    annotations: new Map(),
+    annotations,
   });
 };
 
@@ -300,6 +353,11 @@ export const buildRealizationPaymentCalendar = (
       ...(paymentDescriptions.get(payment.date) ?? []),
       `Gerçek tahsilat · ${payment.channel}${payment.note ? ` · ${payment.note}` : ''}`,
     ]);
+  for (const refund of (scenario.actualRefunds ?? []).filter((item) => item.date <= scenario.asOfDate))
+    paymentDescriptions.set(refund.date, [
+      ...(paymentDescriptions.get(refund.date) ?? []),
+      `Gerçek müşteri iadesi${refund.note ? ` · ${refund.note}` : ''}`,
+    ]);
   const priceSnapshot = result.periods.map((period) => ({
     month: period.marketPriceMonth ?? '',
     ptfUnitPrice: period.ptfUnitPrice ?? 0,
@@ -308,6 +366,18 @@ export const buildRealizationPaymentCalendar = (
     yekdemPriceSource: period.yekdemPriceSource ?? 'legacy',
   }));
   const annotations = new Map<string, string[]>();
+  for (const item of scenario.sourceOfferSnapshot.resultSnapshot.reconciliationInstructions ?? []) {
+    const date = item.scheduledDate ?? item.referenceDate;
+    annotations.set(date, [
+      ...(annotations.get(date) ?? []),
+      `Planlanan mutabakat (gerçekleşmiş sayılmaz) · ${item.note} · ${item.amount.toFixed(2)} TL`,
+    ]);
+  }
+  for (const application of result.receivableLedger.advanceApplications ?? [])
+    annotations.set(application.applicationDate, [
+      ...(annotations.get(application.applicationDate) ?? []),
+      `Gerçek müşteri avansı faturaya uygulandı · ${application.amount.toFixed(2)} TL · nakit değildir`,
+    ]);
   for (const document of result.lateFeeDocuments)
     annotations.set(document.issueDate, [
       ...(annotations.get(document.issueDate) ?? []),

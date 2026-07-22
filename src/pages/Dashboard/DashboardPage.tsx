@@ -3,11 +3,13 @@ import {
   ArrowRight,
   BanknoteArrowDown,
   CircleDollarSign,
+  DatabaseBackup,
   FilePlus2,
   Gauge,
   Sparkles,
   TrendingUp,
   Users,
+  UserPlus,
 } from 'lucide-react';
 import {
   Area,
@@ -62,6 +64,18 @@ export function DashboardPage() {
           </Link>
         }
       />
+      {customers.length === 0 && offers.length === 0 && (
+        <section className="panel empty-start-panel">
+          <span className="eyebrow">BOŞ BAŞLANGIÇ</span>
+          <h2>İlk adımı seçin</h2>
+          <p>Kendi kaydınızı oluşturun, kontrollü demo verisini yükleyin veya güvenli bir yedeği önizleyin.</p>
+          <div className="export-actions">
+            <Link className="button primary" to="/customers"><UserPlus size={16} /> Yeni müşteri oluştur</Link>
+            <Link className="button secondary" to="/settings#demo-data"><Sparkles size={16} /> Demo verisi yükle</Link>
+            <Link className="button ghost" to="/settings#backup"><DatabaseBackup size={16} /> Yedekten geri yükle</Link>
+          </div>
+        </section>
+      )}
       <section className="metric-grid four">
         <MetricCard
           icon={Users}

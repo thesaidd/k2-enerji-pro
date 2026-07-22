@@ -1,6 +1,14 @@
 import { addIsoDays, adjustToBusinessDay, resolvePaymentDate } from '../calendar/calendar';
 import { createId } from '../../config/paymentPlans';
-import type { BillingPeriod, PaymentPlan, PaymentPlanRow, PlannedPayment } from '../../types';
+import { applyPlannedReconciliation } from '../reconciliation/reconciliation';
+import type {
+  BillingPeriod,
+  CashEvent,
+  PaymentPlan,
+  PaymentPlanRow,
+  PlannedPayment,
+  ReconciliationInstruction,
+} from '../../types';
 
 const appliesToPeriod = (row: PaymentPlanRow, period: BillingPeriod, total: number): boolean => {
   if (!row.enabled) return false;
@@ -19,6 +27,8 @@ export interface PlannedSettlement {
   endingAdvance: number;
   endingReceivable: number;
   warnings: string[];
+  reconciliationCashEvents: CashEvent[];
+  reconciliationInstructions: ReconciliationInstruction[];
 }
 
 export const calculatePlannedPayments = (
@@ -101,19 +111,29 @@ export const calculatePlannedPayments = (
       }
     }
   }
-  payments.sort((a, b) => a.settlementDate.localeCompare(b.settlementDate));
-  const principal = payments.reduce((sum, payment) => sum + payment.principalAmount, 0);
-  const endingAdvance = Math.max(0, principal - invoiceTotal);
-  const endingReceivable = Math.max(0, invoiceTotal - principal);
-  const warnings: string[] = [];
-  if (endingAdvance > 1e-6) warnings.push('Ödeme planı sözleşme sonunda müşteri avansı bırakıyor.');
-  if (endingReceivable > 1e-6) warnings.push('Ödeme planı sözleşme sonunda açık alacak bırakıyor.');
-  return {
+  void invoiceTotal;
+  const reconciled = applyPlannedReconciliation(
+    periods,
     payments,
-    totalChannelCost: payments.reduce((sum, payment) => sum + payment.epsasChannelCost, 0),
-    totalCustomerChannelFee: payments.reduce((sum, payment) => sum + payment.customerChannelFee, 0),
-    endingAdvance,
-    endingReceivable,
-    warnings,
+    paymentPlan.reconciliation,
+    usageStart,
+    usageEnd,
+    holidays,
+  );
+  return {
+    payments: reconciled.payments,
+    totalChannelCost: reconciled.payments.reduce(
+      (sum, payment) => sum + payment.epsasChannelCost,
+      0,
+    ),
+    totalCustomerChannelFee: reconciled.payments.reduce(
+      (sum, payment) => sum + payment.customerChannelFee,
+      0,
+    ),
+    endingAdvance: reconciled.endingAdvance,
+    endingReceivable: reconciled.endingReceivable,
+    warnings: reconciled.warnings,
+    reconciliationCashEvents: reconciled.cashEvents,
+    reconciliationInstructions: reconciled.instructions,
   };
 };

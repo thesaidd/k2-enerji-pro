@@ -561,6 +561,123 @@ export function PaymentPlanEditor({
                 <option value="leave_open">Açık alacak bırak</option>
               </select>
             </label>
+            <label className="field">
+              <span>Mutabakat referans tarihi</span>
+              <select
+                value={plan.reconciliation.reference}
+                disabled={!plan.reconciliation.enabled}
+                onChange={(event) =>
+                  onChange({
+                    ...plan,
+                    reconciliation: {
+                      ...plan.reconciliation,
+                      reference: event.target.value as PaymentPlan['reconciliation']['reference'],
+                    },
+                  })
+                }
+              >
+                <option value="invoice_date">Fatura tarihi</option>
+                <option value="period_end">Dönem sonu</option>
+                <option value="usage_end">Kullanım sonu</option>
+              </select>
+            </label>
+            {plan.reconciliation.overpaymentAction === 'refund_after_days' && (
+              <label className="field">
+                <span>İade günü ofseti</span>
+                <input
+                  aria-label="İade günü ofseti"
+                  type="number"
+                  min="0"
+                  value={plan.reconciliation.refundOffsetDays}
+                  onChange={(event) =>
+                    onChange({
+                      ...plan,
+                      reconciliation: {
+                        ...plan.reconciliation,
+                        refundOffsetDays: Number(event.target.value),
+                      },
+                    })
+                  }
+                />
+              </label>
+            )}
+            {plan.reconciliation.underpaymentAction === 'collect_after_days' && (
+              <>
+                <label className="field">
+                  <span>Tamamlayıcı tahsilat günü</span>
+                  <input
+                    aria-label="Tamamlayıcı tahsilat günü"
+                    type="number"
+                    min="0"
+                    value={plan.reconciliation.collectionOffsetDays}
+                    onChange={(event) =>
+                      onChange({
+                        ...plan,
+                        reconciliation: {
+                          ...plan.reconciliation,
+                          collectionOffsetDays: Number(event.target.value),
+                        },
+                      })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Tamamlayıcı tahsilat kanalı</span>
+                  <select
+                    value={plan.reconciliation.collectionChannel}
+                    onChange={(event) =>
+                      onChange({
+                        ...plan,
+                        reconciliation: {
+                          ...plan.reconciliation,
+                          collectionChannel: event.target.value as PaymentPlan['reconciliation']['collectionChannel'],
+                        },
+                      })
+                    }
+                  >
+                    {Object.entries(PAYMENT_CHANNEL_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Tamamlayıcı tahsilat komisyonu (%)</span>
+                  <input
+                    aria-label="Tamamlayıcı tahsilat komisyonu"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={plan.reconciliation.collectionCommissionRate}
+                    onChange={(event) =>
+                      onChange({
+                        ...plan,
+                        reconciliation: {
+                          ...plan.reconciliation,
+                          collectionCommissionRate: Number(event.target.value),
+                        },
+                      })
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Komisyonu ödeyen</span>
+                  <select
+                    value={plan.reconciliation.collectionCommissionBearer}
+                    onChange={(event) =>
+                      onChange({
+                        ...plan,
+                        reconciliation: {
+                          ...plan.reconciliation,
+                          collectionCommissionBearer: event.target.value as 'epsas' | 'customer',
+                        },
+                      })
+                    }
+                  >
+                    <option value="epsas">EPSAŞ</option>
+                    <option value="customer">Müşteri</option>
+                  </select>
+                </label>
+              </>
+            )}
           </div>
         </div>
       )}

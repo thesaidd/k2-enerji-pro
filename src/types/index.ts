@@ -72,7 +72,47 @@ export interface GesSettings {
   priceType?: 'regulated' | 'ptf' | 'ptf_yekdem' | 'manual';
   nettingMethod?: 'monthly' | 'hourly' | 'manual';
   excessProductionTaxMode?: 'manual' | 'no_tax_in_demo';
+  manualTaxAmountTl?: number;
   settlementMode?: 'cash_outflow' | 'invoice_offset';
+  excessPurchasePaymentOffsetDays?: number;
+}
+
+export interface TariffVersion {
+  id: string;
+  customerType: string;
+  validFrom: ISODate;
+  validTo?: ISODate;
+  kdvRate: number;
+  btvRate: number;
+  distributionUnitTlMwh: number;
+  sourceLabel: string;
+  versionLabel: string;
+  active: boolean;
+  updatedAt: string;
+}
+
+export interface TariffPeriodOverride {
+  month: string;
+  kdvRate: number;
+  btvRate: number;
+  distributionUnitTlMwh: number;
+  reason: string;
+}
+
+export type TariffSourceMode = 'catalog' | 'explicit_override' | 'legacy_numeric';
+
+export interface TariffSnapshot {
+  tariffId?: string;
+  versionLabel: string;
+  validFrom?: ISODate;
+  validTo?: ISODate;
+  kdvRate: number;
+  btvRate: number;
+  distributionUnitTlMwh: number;
+  sourceLabel: string;
+  sourceMode?: TariffSourceMode;
+  manualOverride: boolean;
+  overrideReason?: string;
 }
 
 export interface PaymentPlanRow {
@@ -148,6 +188,8 @@ export interface OfferState {
   btvDueOffset: number;
   ges: GesSettings;
   paymentPlan: PaymentPlan;
+  tariffOverrides?: TariffPeriodOverride[];
+  tariffSourceMode?: TariffSourceMode;
 }
 
 export interface BillingPeriod {
@@ -187,6 +229,53 @@ export interface BillingPeriod {
   yekdemUnitPrice?: number;
   ptfPriceSource?: MarketPriceSource;
   yekdemPriceSource?: MarketPriceSource;
+  tariffSnapshot?: TariffSnapshot;
+}
+
+export type ReconciliationInstructionType =
+  | 'carry_advance_forward'
+  | 'refund_customer'
+  | 'supplemental_collection'
+  | 'carry_receivable_forward'
+  | 'leave_receivable_open';
+
+export interface ReconciliationInstruction {
+  id: string;
+  periodId: string;
+  type: ReconciliationInstructionType;
+  referenceDate: ISODate;
+  scheduledDate?: ISODate;
+  amount: number;
+  sourcePeriodId?: string;
+  targetPeriodId?: string;
+  applicationDate?: ISODate;
+  paymentChannel?: PaymentChannel;
+  commissionRate?: number;
+  commissionBearer?: CommissionBearer;
+  source: 'planned';
+  note: string;
+}
+
+export interface AdvanceApplication {
+  id: string;
+  advanceLotId: string;
+  sourcePaymentId: string;
+  sourcePeriodId?: string;
+  targetInvoiceId: string;
+  targetPeriodId: string;
+  applicationDate: ISODate;
+  amount: number;
+}
+
+export interface CustomerAdvanceLot {
+  id: string;
+  sourcePaymentId: string;
+  sourcePeriodId?: string;
+  availableDate: ISODate;
+  originalAmount: number;
+  appliedAmount: number;
+  remainingAmount: number;
+  applications: AdvanceApplication[];
 }
 
 export interface CashEvent {
@@ -354,6 +443,9 @@ export interface CalculationResult {
   cashReconciliationDifference?: number;
   totals: CalculationTotals;
   marketPriceSnapshot?: MarketPriceSnapshot[];
+  reconciliationInstructions?: ReconciliationInstruction[];
+  endingCustomerAdvance?: number;
+  endingOpenReceivable?: number;
 }
 
 export interface CostDraft {
@@ -396,6 +488,14 @@ export interface ActualPayment {
   note?: string;
 }
 
+export interface ActualCustomerRefund {
+  id: string;
+  date: ISODate;
+  amount: number;
+  sourcePeriodId?: string;
+  note?: string;
+}
+
 export interface ActualPaymentFinancials {
   paymentId: string;
   principalAmount: number;
@@ -425,12 +525,17 @@ export interface ReceivableInstallment {
   invoiceId: string;
   periodId: string;
   periodIndex: number;
+  invoiceDate?: ISODate;
+  carriedToPeriodId?: string;
+  carriedApplicationDate?: ISODate;
   sourcePlannedPaymentId?: string;
   principalAmount: number;
   dueDate: ISODate;
   collectedAmount: number;
+  advanceAppliedAmount?: number;
   outstandingPrincipal: number;
   allocations: ReceivablePaymentAllocation[];
+  advanceApplications?: AdvanceApplication[];
 }
 
 export interface ReceivableLedger {
@@ -439,8 +544,11 @@ export interface ReceivableLedger {
   allocations: ReceivablePaymentAllocation[];
   totalPaymentsAsOf: number;
   totalCollectedPrincipal: number;
+  totalAdvanceApplied: number;
   totalOutstandingPrincipal: number;
   customerAdvance: number;
+  advanceLots: CustomerAdvanceLot[];
+  advanceApplications: AdvanceApplication[];
 }
 
 export interface PeriodRealizationOverride {
@@ -597,6 +705,7 @@ export interface RealizationResult {
   cashReconciliationDifference?: number;
   actualCashEvents?: CashEvent[];
   marketPriceWarnings?: string[];
+  actualRefundTotal?: number;
 }
 
 export interface RealizationScenario {
@@ -610,6 +719,7 @@ export interface RealizationScenario {
   periodOverrides: PeriodRealizationOverride[];
   financingOverrides?: RealizationFinancingOverrides;
   actualPayments: ActualPayment[];
+  actualRefunds?: ActualCustomerRefund[];
   resultSnapshot: RealizationResult;
   createdAt: string;
   updatedAt: string;
@@ -630,6 +740,8 @@ export interface AppSettings {
   lateFee: LateFeeSettings;
   policyVersion: string;
   monthlyMarketPrices: MonthlyMarketPrice[];
+  tariffVersions?: TariffVersion[];
+  lastBackupAt?: string;
 }
 
 export type PaymentCalendarSourceType = 'planned_offer' | 'realization_scenario';

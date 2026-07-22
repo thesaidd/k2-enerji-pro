@@ -9,14 +9,16 @@ import {
   Save,
   Settings,
   ShieldCheck,
+  Sparkles,
   Sun,
   Trash2,
 } from 'lucide-react';
 import { useAppStore } from '../../app/store/useAppStore';
 import { CALCULATION_POLICY_VERSION } from '../../config/calculationPolicy';
+import { APP_VERSION, BACKUP_SCHEMA_VERSION } from '../../config/release';
 import {
   DataPortabilityService,
-  type BackupPayload,
+  type RestorePreview,
 } from '../../services/storage/DataPortabilityService';
 import {
   detectLegacyLocalStorage,
@@ -31,10 +33,15 @@ import {
   MONTHLY_MARKET_PRICE_STATUS_LABELS,
   monthlyMarketPriceStatus,
 } from '../../domain/market-prices/marketPrices';
-import type { MonthlyMarketPrice } from '../../types';
+import type { MonthlyMarketPrice, TariffVersion } from '../../types';
+import { DemoDataService } from '../../demo/demoDataService';
 
 export function SettingsPage() {
   const settings = useAppStore((state) => state.settings);
+  const customers = useAppStore((state) => state.customers);
+  const costDrafts = useAppStore((state) => state.costDrafts);
+  const offers = useAppStore((state) => state.offers);
+  const scenarios = useAppStore((state) => state.scenarios);
   const updateSettings = useAppStore((state) => state.updateSettings);
   const saveMonthlyMarketPrices = useAppStore((state) => state.saveMonthlyMarketPrices);
   const applyMigration = useAppStore((state) => state.applyMigration);
@@ -43,15 +50,72 @@ export function SettingsPage() {
   const [lateRate, setLateRate] = useState(settings.lateFee.monthlyRate);
   const [holiday, setHoliday] = useState('');
   const [migration, setMigration] = useState<MigrationPreview | null>(null);
+  const [restorePreview, setRestorePreview] = useState<RestorePreview | null>(null);
+  const [demoAction, setDemoAction] = useState<'load' | 'clear' | null>(null);
   const [marketPrices, setMarketPrices] = useState<MonthlyMarketPrice[]>(() =>
     structuredClone(settings.monthlyMarketPrices),
   );
   const marketPriceSignature = JSON.stringify(settings.monthlyMarketPrices);
   const [loadedMarketPriceSignature, setLoadedMarketPriceSignature] = useState(marketPriceSignature);
+  const tariffSignature = JSON.stringify(settings.tariffVersions ?? []);
+  const [tariffVersions, setTariffVersions] = useState<TariffVersion[]>(() =>
+    structuredClone(settings.tariffVersions ?? []),
+  );
+  const [loadedTariffSignature, setLoadedTariffSignature] = useState(tariffSignature);
   if (loadedMarketPriceSignature !== marketPriceSignature) {
     setLoadedMarketPriceSignature(marketPriceSignature);
     setMarketPrices(structuredClone(settings.monthlyMarketPrices));
   }
+  if (loadedTariffSignature !== tariffSignature) {
+    setLoadedTariffSignature(tariffSignature);
+    setTariffVersions(structuredClone(settings.tariffVersions ?? []));
+  }
+  const addTariffVersion = () => {
+    const source = tariffVersions[0];
+    const timestamp = new Date().toISOString();
+    setTariffVersions([
+      ...tariffVersions,
+      {
+        id: `tariff-${Date.now()}`,
+        customerType: source?.customerType ?? 'tek-terimli-ag-sanayi',
+        validFrom: '',
+        validTo: undefined,
+        kdvRate: source?.kdvRate ?? 20,
+        btvRate: source?.btvRate ?? 1,
+        distributionUnitTlMwh: source?.distributionUnitTlMwh ?? 0,
+        sourceLabel: '',
+        versionLabel: '',
+        active: false,
+        updatedAt: timestamp,
+      },
+    ]);
+  };
+  const copyTariffVersion = (index: number) => {
+    const source = tariffVersions[index];
+    if (!source) return;
+    setTariffVersions([
+      ...tariffVersions,
+      {
+        ...structuredClone(source),
+        id: `${source.id}-copy-${Date.now()}`,
+        versionLabel: `${source.versionLabel} kopya`,
+        active: false,
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+  };
+  const saveTariffVersions = async () => {
+    try {
+      await updateSettings({ tariffVersions });
+      notify({ tone: 'success', title: 'Tarife kataloğu kaydedildi' });
+    } catch (error) {
+      notify({
+        tone: 'error',
+        title: 'Tarife kataloğu kaydedilemedi',
+        detail: error instanceof Error ? error.message : 'Tarife doğrulama hatası',
+      });
+    }
+  };
   const addMarketPrice = () => {
     if (marketPrices.some((record) => !record.month)) {
       notify({ tone: 'warning', title: 'Önce boş ay satırını tamamlayın' });
@@ -111,14 +175,9 @@ export function SettingsPage() {
     if (!file) return;
     try {
       const parsed = JSON.parse(await file.text()) as unknown;
-      const version =
-        parsed && typeof parsed === 'object' && 'version' in parsed
-          ? String((parsed as { version?: unknown }).version)
-          : '';
-      if (version === 'K2-ENERJIPRO-3.0') {
-        await DataPortabilityService.restore(parsed as BackupPayload);
-        await loadAll();
-        notify({ tone: 'success', title: '3.0 yedeği geri yüklendi', detail: file.name });
+      const record = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+      if (record.format === 'K2-ENERJIPRO' || record.version === 'K2-ENERJIPRO-3.0') {
+        setRestorePreview(await DataPortabilityService.previewRestore(parsed));
       } else setMigration(preview217Migration(parsed));
     } catch (error) {
       notify({
@@ -138,12 +197,33 @@ export function SettingsPage() {
       notify({ tone: 'error', title: '2.17 localStorage verisi okunamadı' });
     }
   };
-  const backup = async () =>
+  const backup = async () => {
+    const timestamp = new Date().toISOString();
     downloadText(
       JSON.stringify(await DataPortabilityService.export(), null, 2),
-      `k2-energipro-3.0-yedek-${new Date().toISOString().slice(0, 10)}.json`,
+      `k2-energipro-3.0-yedek-${timestamp.slice(0, 10)}.json`,
       'application/json',
     );
+    await updateSettings({ lastBackupAt: timestamp });
+  };
+  const confirmRestore = async () => {
+    if (!restorePreview) return;
+    await DataPortabilityService.restore(restorePreview);
+    setRestorePreview(null);
+    await loadAll();
+    notify({ tone: 'success', title: 'Yedek güvenli transaction ile geri yüklendi' });
+  };
+  const confirmDemoAction = async () => {
+    if (demoAction === 'load') {
+      await DemoDataService.load();
+      notify({ tone: 'success', title: 'Kontrollü demo verisi yüklendi' });
+    } else if (demoAction === 'clear') {
+      await DemoDataService.clear();
+      notify({ tone: 'success', title: 'Yalnız demo fixture kayıtları temizlendi' });
+    }
+    setDemoAction(null);
+    await loadAll();
+  };
   return (
     <div>
       <PageHeader
@@ -294,6 +374,84 @@ export function SettingsPage() {
             </button>
           </div>
         </section>
+        <section className="panel span-2">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">TARİFE KATALOĞU</span>
+              <h2>Tarihli demo tarife versiyonları</h2>
+            </div>
+            <div className="page-actions">
+              <button className="button ghost" onClick={addTariffVersion}>
+                <Plus size={16} /> Yeni tarife versiyonu
+              </button>
+              <button className="button secondary" onClick={() => void saveTariffVersions()}>
+                <Save size={16} /> Tarifeleri kaydet
+              </button>
+            </div>
+          </div>
+          <p className="muted">
+            Bir dönem için tam bir aktif tarife bulunamazsa nihai teklif engellenir. Sistem eski
+            tarifeyi sessizce ileri taşımaz.
+          </p>
+          <div className="table-wrap wide-table">
+            <table aria-label="Tarife versiyonları">
+              <thead>
+                <tr>
+                  <th>Aktif</th>
+                  <th>Müşteri tipi</th>
+                  <th>Geçerlilik</th>
+                  <th>KDV</th>
+                  <th>BTV</th>
+                  <th>Dağıtım</th>
+                  <th>Kaynak / sürüm</th>
+                  <th>İşlem</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tariffVersions.map((tariff, index) => {
+                  const patchTariff = (patch: Partial<TariffVersion>) =>
+                    setTariffVersions(
+                      tariffVersions.map((candidate, candidateIndex) =>
+                        candidateIndex === index
+                          ? { ...candidate, ...patch, updatedAt: new Date().toISOString() }
+                          : candidate,
+                      ),
+                    );
+                  return (
+                    <tr key={tariff.id}>
+                      <td>
+                        <input
+                          aria-label={`${tariff.customerType} aktif`}
+                          type="checkbox"
+                          checked={tariff.active}
+                          onChange={(event) => patchTariff({ active: event.target.checked })}
+                        />
+                      </td>
+                      <td><input aria-label={`${tariff.id} müşteri tipi`} value={tariff.customerType} onChange={(event) => patchTariff({ customerType: event.target.value })} /></td>
+                      <td>
+                        <input aria-label={`${tariff.customerType} başlangıç`} type="date" value={tariff.validFrom} onChange={(event) => patchTariff({ validFrom: event.target.value })} />
+                        <input aria-label={`${tariff.customerType} bitiş`} type="date" value={tariff.validTo ?? ''} onChange={(event) => patchTariff({ validTo: event.target.value || undefined })} />
+                      </td>
+                      <td><input aria-label={`${tariff.customerType} tarife KDV`} type="number" min="0" max="100" value={Number.isFinite(tariff.kdvRate) ? tariff.kdvRate : ''} onChange={(event) => patchTariff({ kdvRate: event.target.value === '' ? Number.NaN : Number(event.target.value) })} /></td>
+                      <td><input aria-label={`${tariff.customerType} tarife BTV`} type="number" min="0" max="100" value={Number.isFinite(tariff.btvRate) ? tariff.btvRate : ''} onChange={(event) => patchTariff({ btvRate: event.target.value === '' ? Number.NaN : Number(event.target.value) })} /></td>
+                      <td><input aria-label={`${tariff.customerType} tarife dağıtım`} type="number" min="0" value={Number.isFinite(tariff.distributionUnitTlMwh) ? tariff.distributionUnitTlMwh : ''} onChange={(event) => patchTariff({ distributionUnitTlMwh: event.target.value === '' ? Number.NaN : Number(event.target.value) })} /></td>
+                      <td>
+                        <input aria-label={`${tariff.id} kaynak etiketi`} value={tariff.sourceLabel} onChange={(event) => patchTariff({ sourceLabel: event.target.value })} />
+                        <input aria-label={`${tariff.id} sürüm etiketi`} value={tariff.versionLabel} onChange={(event) => patchTariff({ versionLabel: event.target.value })} />
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button className="icon-button" aria-label={`${tariff.id} kopyala`} title="Kopyala" onClick={() => copyTariffVersion(index)}>K</button>
+                          <button className="icon-button danger" aria-label={`${tariff.id} sil`} title="Sil" onClick={() => setTariffVersions(tariffVersions.filter((_, candidateIndex) => candidateIndex !== index))}><Trash2 size={15} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
         <section className="panel">
           <div className="panel-heading">
             <div>
@@ -328,6 +486,38 @@ export function SettingsPage() {
               <small>Cihaz tercihini izle</small>
             </button>
           </div>
+        </section>
+        <section className="panel span-2" id="demo-data">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">KONTROLLÜ DEMO</span>
+              <h2>Sunum veri seti</h2>
+            </div>
+            <Sparkles size={20} />
+          </div>
+          <p>
+            Üç müşteri, çok aylı teklifler, GES, kart komisyonu, gecikmeli tahsilat, müşteri avansı,
+            açık alacak ve legacy snapshot örneklerini deterministik kimliklerle yükler.
+          </p>
+          <div className="export-actions">
+            <button className="button primary" onClick={() => setDemoAction('load')}><Sparkles size={16} /> Demo verisi yükle</button>
+            <button className="button danger" onClick={() => setDemoAction('clear')}><Trash2 size={16} /> Demo verisini temizle</button>
+          </div>
+          {demoAction && (
+            <div className="migration-preview">
+              <div className="notice warning">
+                {demoAction === 'load'
+                  ? 'Demo verisi yüklemek mevcut veriyi değiştirebilir. Önce yedek alın. Kullanıcı kayıtları silinmez; aynı aylardaki kullanıcı piyasa verileri korunur.'
+                  : 'Yalnız K2 demo fixture’ına ait deterministik kimlikler ve işaretli demo piyasa ayları silinir. Diğer kullanıcı kayıtları korunur.'}
+              </div>
+              <div className="form-actions">
+                <button className="button ghost" onClick={() => setDemoAction(null)}>İptal</button>
+                <button className="button primary" onClick={() => void confirmDemoAction()}>
+                  {demoAction === 'load' ? 'Uyarıyı kabul et ve yükle' : 'Yalnız demo verisini temizle'}
+                </button>
+              </div>
+            </div>
+          )}
         </section>
         <section className="panel">
           <div className="panel-heading">
@@ -424,7 +614,7 @@ export function SettingsPage() {
             )}
           </div>
         </section>
-        <section className="panel">
+        <section className="panel" id="backup">
           <div className="panel-heading">
             <div>
               <span className="eyebrow">YEDEKLEME</span>
@@ -449,6 +639,28 @@ export function SettingsPage() {
               />
             </label>
           </div>
+          {restorePreview && (
+            <div className="migration-preview">
+              <div className="metric-grid four">
+                <div><span>Müşteri</span><strong>{restorePreview.customers}</strong></div>
+                <div><span>Taslak</span><strong>{restorePreview.costDrafts}</strong></div>
+                <div><span>Nihai teklif</span><strong>{restorePreview.plannedOffers}</strong></div>
+                <div><span>Gerçekleşme</span><strong>{restorePreview.realizationScenarios}</strong></div>
+                <div><span>Aylık fiyat</span><strong>{restorePreview.monthlyPrices}</strong></div>
+                <div><span>Legacy kayıt</span><strong>{restorePreview.legacyRecords}</strong></div>
+                <div><span>Migration kaydı</span><strong>{restorePreview.migrationRecords}</strong></div>
+                <div><span>Uyarı</span><strong>{restorePreview.warnings.length}</strong></div>
+              </div>
+              {restorePreview.warnings.map((warning) => <div className="notice warning" key={warning}>{warning}</div>)}
+              <div className="notice warning">
+                Onaydan sonra mevcut veriler tek transaction içinde bu yedekle değiştirilecektir.
+              </div>
+              <div className="form-actions">
+                <button className="button ghost" onClick={() => setRestorePreview(null)}>İptal</button>
+                <button className="button primary" onClick={() => void confirmRestore()}>Önizlemeyi onayla ve geri yükle</button>
+              </div>
+            </div>
+          )}
         </section>
         <section className="panel span-2">
           <div className="panel-heading">
@@ -524,6 +736,33 @@ export function SettingsPage() {
             </p>
           </div>
           <ShieldCheck size={34} />
+        </section>
+        <section className="panel span-2">
+          <div className="panel-heading">
+            <div><span className="eyebrow">SÜRÜM VE DEPOLAMA</span><h2>K2 EnerjiPro 3.0 — Demo</h2></div>
+            <ShieldCheck size={28} />
+          </div>
+          <div className="metric-grid four">
+            <div><span>Uygulama</span><strong>v{APP_VERSION}</strong></div>
+            <div><span>Policy</span><strong>{CALCULATION_POLICY_VERSION}</strong></div>
+            <div><span>Backup schema</span><strong>v{BACKUP_SCHEMA_VERSION}</strong></div>
+            <div><span>Depolama</span><strong>IndexedDB</strong></div>
+            <div><span>Müşteri</span><strong>{customers.length}</strong></div>
+            <div><span>Taslak / teklif</span><strong>{costDrafts.length} / {offers.length}</strong></div>
+            <div><span>Gerçekleşme</span><strong>{scenarios.length}</strong></div>
+            <div><span>Son yedek</span><strong>{settings.lastBackupAt ? new Date(settings.lastBackupAt).toLocaleString('tr-TR') : 'Yok'}</strong></div>
+          </div>
+        </section>
+        <section className="panel span-2">
+          <div className="panel-heading"><div><span className="eyebrow">DEMO SINIRLARI</span><h2>Desteklenmeyen ürün davranışları</h2></div></div>
+          <ul className="demo-limits">
+            <li>Backend, merkezi veritabanı ve çok kullanıcılı çalışma yoktur.</li>
+            <li>Saatlik GES mahsuplaşması ve GES faturadan mahsup modu yoktur.</li>
+            <li>Resmî fatura entegrasyonu ve otomatik tarife/mevzuat güncellemesi yoktur.</li>
+            <li>EPİAŞ canlı veri entegrasyonu yoktur; piyasa fiyatları kullanıcı girdisidir.</li>
+            <li>GES vergi modu, açık sabit TL girişi veya “demoda vergi yok” varsayımıyla sınırlıdır.</li>
+            <li>PDF çıktısı tarayıcının yazdırma altyapısını kullanır.</li>
+          </ul>
         </section>
       </div>
     </div>

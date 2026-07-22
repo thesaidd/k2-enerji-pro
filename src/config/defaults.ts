@@ -1,5 +1,6 @@
 import { CALCULATION_POLICY_VERSION, DEFAULT_LATE_FEE_MONTHLY_RATE } from './calculationPolicy';
 import { createPaymentPlan } from './paymentPlans';
+import { DEFAULT_TARIFF_VERSIONS } from './tariffs';
 import type { AppSettings, OfferState } from '../types';
 
 export const DEFAULT_OFFER_STATE: OfferState = {
@@ -29,8 +30,14 @@ export const DEFAULT_OFFER_STATE: OfferState = {
   ges: {
     mode: 'simple_self_consumption',
     selfConsumptionRate: 0,
-    excessProductionTaxMode: 'manual',
+    nettingMethod: 'monthly',
+    settlementMode: 'cash_outflow',
+    excessProductionTaxMode: 'no_tax_in_demo',
+    manualTaxAmountTl: 0,
+    excessPurchasePaymentOffsetDays: 10,
   },
+  tariffOverrides: [],
+  tariffSourceMode: 'catalog',
   paymentPlan: createPaymentPlan(),
 };
 
@@ -47,4 +54,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   policyVersion: CALCULATION_POLICY_VERSION,
   monthlyMarketPrices: [],
+  tariffVersions: structuredClone(DEFAULT_TARIFF_VERSIONS),
 };
