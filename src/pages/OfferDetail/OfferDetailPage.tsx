@@ -111,6 +111,11 @@ export function OfferDetailPage() {
         <StatusBadge tone="positive">Nihai teklif</StatusBadge>
         <span>Bu kayıt immutable snapshot’tır. Düzenleme yeni versiyon oluşturur.</span>
       </div>
+      {result.warnings.map((warning) => (
+        <div className="notice warning" key={warning}>
+          {warning}
+        </div>
+      ))}
       <section className="metric-grid four">
         <MetricCard
           label="Brüt müşteri faturası"

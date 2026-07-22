@@ -1,23 +1,63 @@
 import { createId } from '../../config/paymentPlans';
 import { buildDailyCashflow, buildSupplierEvents } from '../financing/financing';
+import { calculateGesPeriod, resolveGesExcessPurchasePrice } from '../ges/ges';
 import {
   accrueMonthlyLateFeeDocuments,
   buildRealizationInvoiceSummaries,
 } from '../late-fee/accrual';
 import { calculateLedgerInvoiceDelinquency } from '../late-fee/lateFee';
-import { calculateMonthlyProfit } from '../profitability/monthlyProfit';
-import { allocatePaymentsToReceivables, buildReceivableInstallments } from '../receivables/ledger';
 import { resolveRealizationMarketPrice } from '../market-prices/marketPrices';
+import {
+  calculateActualPaymentFinancials,
+  resolveActualPaymentCommissionDefaults,
+} from '../payment-plan/actualPaymentFinancials';
+import { calculateMonthlyProfit } from '../profitability/monthlyProfit';
+import {
+  buildPlannedProfitLedger,
+  buildRealizationProfitLedger,
+  cashflowNetEffect,
+  periodProfitComponents,
+  sumProfitLedger,
+} from '../profitability/profitLedger';
+import { allocatePaymentsToReceivables, buildReceivableInstallments } from '../receivables/ledger';
 import type {
   ActualPayment,
   BillingPeriod,
   CashEvent,
+  InvoiceDelinquency,
+  MarketPriceSnapshot,
+  MonthlyMarketPrice,
   PeriodRealizationResult,
   RealizationResult,
   RealizationScenario,
-  MonthlyMarketPrice,
-  MarketPriceSnapshot,
 } from '../../types';
+
+const sum = <T>(items: T[], value: (item: T) => number): number =>
+  items.reduce((total, item) => total + value(item), 0);
+
+export const LEGACY_GES_WARNING =
+  'Eski teklif snapshot’ında dönemsel GES verisi bulunmadığı için ihtiyaç fazlası alımı güvenli legacy yöntemle yeniden oluşturuldu.';
+
+const allocateLegacyGesAmount = (periods: BillingPeriod[], total: number): number[] => {
+  if (periods.length === 0) return [];
+  const shares = periods.map((period) => Math.max(0, period.share));
+  const shareTotal = shares.reduce((current, share) => current + share, 0);
+  const weights = shareTotal > 0 ? shares : periods.map(() => 1);
+  const weightTotal = weights.reduce((current, weight) => current + weight, 0);
+  let allocated = 0;
+  return periods.map((_, index) => {
+    const amount =
+      index === periods.length - 1 ? total - allocated : (total * weights[index]!) / weightTotal;
+    allocated += amount;
+    return amount;
+  });
+};
+
+interface ScenarioPeriodGesData {
+  gridExportMwh: number;
+  excessProductionMwh: number;
+  excessPurchaseAmount?: number;
+}
 
 const scenarioPeriod = (
   period: BillingPeriod,
@@ -27,6 +67,8 @@ const scenarioPeriod = (
   imbalanceRate: number,
   piuRate: number,
   marketPrice: MarketPriceSnapshot,
+  ges: RealizationScenario['sourceOfferSnapshot']['stateSnapshot']['ges'],
+  gesData: ScenarioPeriodGesData,
 ): BillingPeriod => {
   const ptfAmount = period.gridConsumptionMwh * marketPrice.ptfUnitPrice;
   const yekdemAmount = period.gridConsumptionMwh * marketPrice.yekdemUnitPrice;
@@ -38,6 +80,13 @@ const scenarioPeriod = (
   const kdvBase =
     activeEnergySalesAmount + period.distributionAmount + period.contractPowerAmount + btvAmount;
   const kdvAmount = (kdvBase * kdvRate) / 100;
+  const excessPurchasePrice = resolveGesExcessPurchasePrice(
+    ges,
+    marketPrice.ptfUnitPrice,
+    marketPrice.yekdemUnitPrice,
+  );
+  const excessPurchaseAmount =
+    gesData.excessPurchaseAmount ?? gesData.excessProductionMwh * excessPurchasePrice;
   return {
     ...period,
     marketPriceMonth: marketPrice.month,
@@ -67,6 +116,10 @@ const scenarioPeriod = (
       (period.gridConsumptionMwh > 0 ? activeEnergySalesAmount / period.gridConsumptionMwh : 0),
     imbalanceAmount: (activeEnergyBaseAmount * imbalanceRate) / 100,
     piuAmount: (activeEnergyBaseAmount * piuRate) / 100,
+    gridExportMwh: gesData.gridExportMwh,
+    excessProductionMwh: gesData.excessProductionMwh,
+    excessPurchasePrice,
+    excessPurchaseAmount,
   };
 };
 
@@ -78,7 +131,7 @@ export const calculateRealization = (
 ): RealizationResult => {
   const source = scenario.sourceOfferSnapshot.resultSnapshot;
   const state = scenario.sourceOfferSnapshot.stateSnapshot;
-  const adjustedPeriods = source.periods.map((period) => {
+  const periodContexts = source.periods.map((period) => {
     const override = scenario.periodOverrides.find((item) => item.periodId === period.id);
     const marketPrice = resolveRealizationMarketPrice(
       period,
@@ -88,6 +141,33 @@ export const calculateRealization = (
       state.ptfTlMwh,
       state.yekdemTlMwh,
     );
+    return { period, override, marketPrice };
+  });
+  const legacyGesUsed =
+    state.ges.mode === 'advanced_metering' &&
+    source.periods.some(
+      (period) => period.gridExportMwh == null || period.excessProductionMwh == null,
+    );
+  const canRebuildLegacyGesPhysical =
+    Number.isFinite(state.ges.gridExportMwh) || Number.isFinite(state.ges.excessAfterNettingMwh);
+  const legacyGesAmounts = allocateLegacyGesAmount(
+    source.periods,
+    Math.max(0, source.totals.excessProductionPurchase),
+  );
+  const adjustedPeriods = periodContexts.map(({ period, override, marketPrice }, index) => {
+    const legacyPhysicalMissing =
+      state.ges.mode === 'advanced_metering' &&
+      (period.gridExportMwh == null || period.excessProductionMwh == null);
+    const reconstructed = legacyPhysicalMissing
+      ? calculateGesPeriod(
+          period.grossConsumptionMwh,
+          period.share,
+          state.ges,
+          marketPrice.ptfUnitPrice,
+          marketPrice.yekdemUnitPrice,
+        )
+      : undefined;
+    const useAmountFallback = legacyPhysicalMissing && !canRebuildLegacyGesPhysical;
     return scenarioPeriod(
       period,
       override?.scenarioOfferRate ?? state.offerRate ?? 0,
@@ -96,37 +176,82 @@ export const calculateRealization = (
       state.imbalanceRate,
       state.piuRate,
       marketPrice,
+      state.ges,
+      {
+        gridExportMwh: period.gridExportMwh ?? reconstructed?.gridExportMwh ?? 0,
+        excessProductionMwh:
+          period.excessProductionMwh ??
+          (useAmountFallback ? 0 : (reconstructed?.excessProductionMwh ?? 0)),
+        excessPurchaseAmount: useAmountFallback ? legacyGesAmounts[index] : undefined,
+      },
     );
   });
+  const sourceInstallments = buildReceivableInstallments(adjustedPeriods, source.plannedPayments);
   const receivableLedger = allocatePaymentsToReceivables(
-    buildReceivableInstallments(adjustedPeriods, source.plannedPayments),
+    sourceInstallments,
     scenario.actualPayments,
     scenario.asOfDate,
   );
   const effectivePayments = scenario.actualPayments.filter(
     (payment) => payment.date <= scenario.asOfDate && payment.amount > 0,
   );
-  const actualPaymentEvents: CashEvent[] = effectivePayments.map((payment) => ({
-    id: payment.id,
-    date: payment.date,
-    type: 'customer_payment',
-    direction: 'in',
-    amount: payment.amount,
-    principalAmount: payment.amount,
-    periodId: payment.invoiceId,
-    label: 'Gerçek müşteri tahsilatı',
-    note: payment.note,
-  }));
+  const actualPaymentFinancials = effectivePayments.map((payment) =>
+    calculateActualPaymentFinancials(
+      payment,
+      resolveActualPaymentCommissionDefaults(
+        payment.receivableInstallmentId,
+        sourceInstallments,
+        source.plannedPayments,
+      ),
+    ),
+  );
+  const financialsByPayment = new Map(
+    actualPaymentFinancials.map((financials) => [financials.paymentId, financials]),
+  );
+  const actualPaymentEvents: CashEvent[] = effectivePayments.map((payment) => {
+    const financials = financialsByPayment.get(payment.id)!;
+    return {
+      id: payment.id,
+      date: payment.date,
+      type: 'customer_payment',
+      direction: 'in',
+      amount: financials.netCashIn,
+      principalAmount: financials.principalAmount,
+      channelCost: financials.epsasChannelCost,
+      periodId: payment.invoiceId,
+      label: 'Gerçek müşteri tahsilatı',
+      note: payment.note,
+    };
+  });
+  const actualExcessProductionPurchase = sum(
+    adjustedPeriods,
+    (period) => period.excessPurchaseAmount ?? 0,
+  );
   const supplierEvents = buildSupplierEvents(
     adjustedPeriods,
     state,
-    source.totals.excessProductionPurchase,
+    actualExcessProductionPurchase,
     holidays,
+  ).filter((event) => event.date <= scenario.asOfDate);
+  const actualCashEvents = [...supplierEvents, ...actualPaymentEvents].sort((a, b) =>
+    a.date.localeCompare(b.date),
   );
-  const actualCashEvents = [...supplierEvents, ...actualPaymentEvents];
-  const actualCashflow = buildDailyCashflow(actualCashEvents, state.creditRate, state.valorRate);
-  const actualCreditCost = actualCashflow.reduce((sum, day) => sum + day.creditInterest, 0);
-  const actualValorIncome = actualCashflow.reduce((sum, day) => sum + day.valorInterest, 0);
+  const effectiveCreditRate = scenario.financingOverrides?.creditRate ?? state.creditRate;
+  const effectiveValorRate = scenario.financingOverrides?.valorRate ?? state.valorRate;
+  const financingStartDate = [
+    scenario.asOfDate,
+    ...(state.usageStart <= scenario.asOfDate ? [state.usageStart] : []),
+    ...actualCashEvents.map((event) => event.date),
+  ].sort()[0]!;
+  const actualCashflow = buildDailyCashflow(
+    actualCashEvents,
+    effectiveCreditRate,
+    effectiveValorRate,
+    {
+      calculationStartDate: financingStartDate,
+      calculationEndDate: scenario.asOfDate,
+    },
+  );
   const lateFeeDocuments = accrueMonthlyLateFeeDocuments(
     adjustedPeriods,
     receivableLedger,
@@ -139,11 +264,30 @@ export const calculateRealization = (
     },
   );
   const invoiceSummaries = buildRealizationInvoiceSummaries(adjustedPeriods, lateFeeDocuments);
-  const paymentsById = new Map(scenario.actualPayments.map((payment) => [payment.id, payment]));
-  const plannedPeriodProfitBase = source.periods.reduce(
-    (sum, period) => sum + period.offerMargin,
-    0,
+  const delinquencyByPeriod = new Map<string, InvoiceDelinquency>(
+    adjustedPeriods.map((period) => [
+      period.id,
+      calculateLedgerInvoiceDelinquency(
+        period,
+        receivableLedger,
+        scenario.asOfDate,
+        monthlyLateFeeRate,
+      ),
+    ]),
   );
+  const profitLedger = buildRealizationProfitLedger(
+    adjustedPeriods,
+    actualCashflow,
+    receivableLedger,
+    actualPaymentFinancials,
+    Object.fromEntries(
+      [...delinquencyByPeriod].map(([periodId, delinquency]) => [periodId, delinquency.lateFee]),
+    ),
+  );
+  const plannedProfitLedger =
+    source.profitLedger ??
+    buildPlannedProfitLedger(source.periods, source.plannedPayments, source.plannedCashflow);
+  const paymentsById = new Map(scenario.actualPayments.map((payment) => [payment.id, payment]));
   const periods: PeriodRealizationResult[] = adjustedPeriods.map((adjusted) => {
     const period = source.periods.find((candidate) => candidate.id === adjusted.id)!;
     const override = scenario.periodOverrides.find((item) => item.periodId === period.id);
@@ -155,16 +299,10 @@ export const calculateRealization = (
       state.ptfTlMwh,
       state.yekdemTlMwh,
     );
-    const offerRate = override?.scenarioOfferRate ?? state.offerRate ?? 0;
     const receivableInstallments = receivableLedger.installments.filter(
       (installment) => installment.invoiceId === period.id,
     );
-    const delinquency = calculateLedgerInvoiceDelinquency(
-      adjusted,
-      receivableLedger,
-      scenario.asOfDate,
-      monthlyLateFeeRate,
-    );
+    const delinquency = delinquencyByPeriod.get(period.id)!;
     const paymentGroups = new Map<string, ActualPayment>();
     for (const allocation of receivableLedger.allocations.filter(
       (item) => item.invoiceId === period.id,
@@ -181,17 +319,13 @@ export const calculateRealization = (
     const payments = [...paymentGroups.values()].sort(
       (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
     );
-    const profitShare =
-      plannedPeriodProfitBase > 0 ? period.offerMargin / plannedPeriodProfitBase : period.share;
-    const plannedNetProfit = source.totals.netProfit * profitShare;
-    const financingShare = adjusted.grossInvoice / Math.max(1, source.totals.grossInvoice);
-    const actualNetProfit =
-      adjusted.offerMargin -
-      adjusted.imbalanceAmount -
-      adjusted.piuAmount -
-      actualCreditCost * financingShare +
-      actualValorIncome * financingShare +
-      delinquency.lateFee;
+    const actualComponents = periodProfitComponents(profitLedger, period.id);
+    const plannedNetProfit = sumProfitLedger(
+      plannedProfitLedger.filter((entry) => entry.periodId === period.id),
+    );
+    const actualNetProfit = sumProfitLedger(
+      profitLedger.filter((entry) => entry.periodId === period.id),
+    );
     return {
       periodId: period.id,
       plannedInvoice: period.grossInvoice,
@@ -203,9 +337,15 @@ export const calculateRealization = (
       delayDays: delinquency.delayDays,
       lateFee: delinquency.lateFee,
       lateFeeVat: delinquency.lateFeeVat,
-      actualCreditCost: actualCreditCost * financingShare,
-      actualValorIncome: actualValorIncome * financingShare,
-      scenarioOfferRate: offerRate,
+      actualOfferMargin: actualComponents.offer_margin,
+      actualImbalance: actualComponents.imbalance,
+      actualPiu: actualComponents.piu,
+      actualPaymentChannelCost: actualComponents.payment_channel_cost,
+      actualCreditCost: actualComponents.credit_interest,
+      actualValorIncome: actualComponents.valor_income,
+      actualExcessProductionPurchase: actualComponents.excess_production_purchase,
+      lateFeeIncome: actualComponents.late_fee_income,
+      scenarioOfferRate: override?.scenarioOfferRate ?? state.offerRate ?? 0,
       plannedNetProfit,
       actualNetProfit,
       variance: actualNetProfit - plannedNetProfit,
@@ -218,13 +358,17 @@ export const calculateRealization = (
       marketPriceWarnings: marketPrice.warnings,
     };
   });
-  const totalLateFee = periods.reduce((sum, period) => sum + period.lateFee, 0);
-  const totalLateFeeVat = periods.reduce((sum, period) => sum + period.lateFeeVat, 0);
-  const lateFeeMonth = scenario.asOfDate.slice(0, 7);
-  const monthlyProfit = calculateMonthlyProfit(adjustedPeriods, actualCashflow, 0, {
-    [lateFeeMonth]: totalLateFee,
-  });
-  const actualProfit = periods.reduce((sum, period) => sum + period.actualNetProfit, 0);
+  const totalLateFee = sum(periods, (period) => period.lateFee);
+  const totalLateFeeVat = sum(periods, (period) => period.lateFeeVat);
+  const actualPaymentChannelCost = sum(
+    actualPaymentFinancials,
+    (financials) => financials.epsasChannelCost,
+  );
+  const actualCreditCost = sum(actualCashflow, (day) => day.creditInterest);
+  const actualValorIncome = sum(actualCashflow, (day) => day.valorInterest);
+  const monthlyProfit = calculateMonthlyProfit(adjustedPeriods, actualCashflow, profitLedger);
+  const actualProfit = sumProfitLedger(profitLedger);
+  const endingCashBalance = actualCashflow.at(-1)?.closingBalance ?? 0;
   return {
     periods,
     billingPeriods: adjustedPeriods,
@@ -235,14 +379,30 @@ export const calculateRealization = (
     ),
     actualCashflow,
     monthlyProfit,
+    profitLedger,
     plannedProfit: source.totals.netProfit,
     actualProfit,
     variance: actualProfit - source.totals.netProfit,
     totalLateFee,
     totalLateFeeVat,
     endingOpenReceivable: receivableLedger.totalOutstandingPrincipal,
+    actualPaymentFinancials,
+    actualPaymentChannelCost,
+    actualExcessProductionPurchase,
+    actualCreditCost,
+    actualValorIncome,
+    effectiveCreditRate,
+    effectiveValorRate,
+    financingStartDate,
+    financingEndDate: scenario.asOfDate,
+    endingCashBalance,
+    openFinancingBalance: Math.max(0, -endingCashBalance),
+    profitReconciliationDifference: sum(monthlyProfit, (row) => row.accrualProfit) - actualProfit,
+    cashReconciliationDifference:
+      sum(monthlyProfit, (row) => row.cashResult) - cashflowNetEffect(actualCashflow),
     actualCashEvents,
     marketPriceWarnings: [
+      ...(legacyGesUsed ? [LEGACY_GES_WARNING] : []),
       ...new Set(periods.flatMap((period) => period.marketPriceWarnings ?? [])),
     ],
   };

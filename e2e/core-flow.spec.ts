@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 test('müşteriden rapora uçtan uca planlanan ve gerçekleşen akış', async ({ page }) => {
   await page.goto('/');
@@ -63,12 +64,33 @@ test('müşteriden rapora uçtan uca planlanan ve gerçekleşen akış', async (
   await page.getByLabel('Senaryo adı').fill('5 Gün Gecikmeli');
   await page.getByRole('button', { name: 'Gerçekleşme senaryosu oluştur' }).click();
   await expect(page).toHaveURL(/\/realization\//);
+  const scenarioUrl = page.url();
   await expect(page.getByText('Bu ekran kaynak teklifi değiştirmez.')).toBeVisible();
+  await page.getByLabel('Hesaplama tarihi').fill('');
+  await expect(page.getByRole('heading', { name: '5 Gün Gecikmeli' })).toBeVisible();
   await page.getByLabel('Hesaplama tarihi').fill('2026-08-31');
-  await page.getByLabel('Fatura / dönem').selectOption({ index: 1 });
+  const creditMetric = page.locator('.metric-card').filter({ hasText: 'Gerçek kredi / valör' });
+  const initialCreditMetric = await creditMetric.textContent();
+  const initialProfitMetric = await page
+    .locator('.metric-card')
+    .filter({ hasText: 'Gerçekleşen net kâr' })
+    .textContent();
+  await page.getByLabel('Senaryo Yıllık Kredi Faizi').fill('80');
+  await page.getByLabel('Senaryo Yıllık Valör Faizi').fill('15');
+  await expect.poll(() => creditMetric.textContent()).not.toBe(initialCreditMetric);
+  await page.getByLabel('Fatura / dönem').selectOption({ index: 2 });
   await page.getByLabel('Gerçek ödeme tarihi').fill('2026-08-20');
   await page.getByLabel('Tahsilat tutarı').fill('400000');
+  await page.getByLabel('Komisyon oranı').fill('2');
+  await page.getByLabel('Komisyonu ödeyen').selectOption('epsas');
   await page.getByRole('button', { name: 'Tahsilat ekle' }).click();
+  const channelMetric = page.locator('.metric-card').filter({ hasText: 'Gerçek kanal maliyeti' });
+  await expect(channelMetric).not.toContainText('₺0,00');
+  await expect
+    .poll(() =>
+      page.locator('.metric-card').filter({ hasText: 'Gerçekleşen net kâr' }).textContent(),
+    )
+    .not.toBe(initialProfitMetric);
   await page.getByLabel('Gerçek ödeme tarihi').fill('2026-08-25');
   await page.getByLabel('Tahsilat tutarı').fill('350000');
   await page.getByRole('button', { name: 'Tahsilat ekle' }).click();
@@ -76,11 +98,58 @@ test('müşteriden rapora uçtan uca planlanan ve gerçekleşen akış', async (
   await page.getByRole('button', { name: 'Senaryoyu kaydet' }).click();
   await expect(page.getByText('Gerçekleşme senaryosu kaydedildi').last()).toBeVisible();
 
+  await page.getByRole('link', { name: 'Ödeme / Kullanım Takvimini Aç' }).click();
+  await expect(page.locator('.metric-card').filter({ hasText: 'Hesaplama bitiş tarihi' })).toContainText(
+    '2026-08-31',
+  );
+  await expect(page.locator('.metric-card').filter({ hasText: 'Gerçek kanal maliyeti' })).not.toContainText(
+    '₺0,00',
+  );
+  await expect(page.locator('.metric-card').filter({ hasText: 'Efektif kredi oranı' })).toContainText(
+    '%80,00',
+  );
+
+  const csvDownloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Takvim CSV' }).click();
+  const csvDownload = await csvDownloadPromise;
+  expect(csvDownload.suggestedFilename()).toMatch(/-takvim\.csv$/);
+  const csvPath = await csvDownload.path();
+  expect(csvPath).not.toBeNull();
+  const csvContent = await readFile(csvPath!, 'utf8');
+  expect(csvContent).toContain('Açık finansman bakiyesi');
+  expect(csvContent).toContain('Kanal maliyeti');
+
+  const excelDownloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Excel uyumlu tablo' }).click();
+  const excelDownload = await excelDownloadPromise;
+  expect(excelDownload.suggestedFilename()).toMatch(/-takvim\.xls$/);
+  const excelPath = await excelDownload.path();
+  expect(excelPath).not.toBeNull();
+  const excelContent = await readFile(excelPath!, 'utf8');
+  expect(excelContent).toContain('<table>');
+  expect(excelContent).toContain('Açık finansman bakiyesi');
+
+  await page.evaluate(() => {
+    window.print = () => {
+      document.documentElement.dataset.printInvoked = 'true';
+    };
+  });
+  await page.getByRole('button', { name: 'PDF / Yazdır' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-print-invoked', 'true');
+
   await page.getByRole('link', { name: 'Aylık Kâr' }).click();
   await page.getByLabel('Planlanan teklif').selectOption({ index: 1 });
+  await page.getByLabel('Gerçekleşme senaryosu').selectOption({ index: 1 });
   await expect(
     page.getByRole('heading', { name: 'Bu tüketim ayı ticari olarak ne kadar kârlıydı?' }),
   ).toBeVisible();
+  await expect(page.getByText('Gerçekleşen mutabakat').locator('..')).toContainText('Mutabık');
+
+  await page.goto(scenarioUrl);
+  await page.reload();
+  await expect(page.getByLabel('Senaryo Yıllık Kredi Faizi')).toHaveValue('80');
+  await expect(page.getByLabel('Senaryo Yıllık Valör Faizi')).toHaveValue('15');
+  await expect(page.getByText('EPSAŞ komisyonu').first()).toBeVisible();
 
   await page.getByRole('link', { name: 'Grafikler' }).click();
   await page.getByLabel('Müşteri').selectOption({ label: 'ABC Sanayi' });

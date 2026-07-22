@@ -20,6 +20,10 @@ import {
 } from '../../domain/realization/realization';
 import { paymentCalendarUrl } from '../../domain/payment-calendar/paymentCalendar';
 import { marketPriceSourceLabel } from '../../domain/market-prices/marketPrices';
+import {
+  calculateActualPaymentFinancials,
+  resolveActualPaymentCommissionDefaults,
+} from '../../domain/payment-plan/actualPaymentFinancials';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MetricCard } from '../../components/ui/MetricCard';
 import { NumberField } from '../../components/ui/NumberField';
@@ -215,12 +219,15 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
   const [scenario, setScenario] = useState<RealizationScenario>(() =>
     structuredClone(initialScenario),
   );
+  const [asOfDateDraft, setAsOfDateDraft] = useState(initialScenario.asOfDate);
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
   const [bulkRate, setBulkRate] = useState(0);
   const [payment, setPayment] = useState<Omit<ActualPayment, 'id'>>({
     date: initialScenario.asOfDate,
     amount: 0,
     channel: 'eft',
+    commissionRate: 0,
+    commissionBearer: 'epsas',
     note: '',
   });
   const result = useMemo(
@@ -230,6 +237,15 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
   );
   const updateScenario = (patch: Partial<RealizationScenario>) =>
     setScenario({ ...scenario, ...patch, resultSnapshot: result });
+  const paymentDefaults = resolveActualPaymentCommissionDefaults(
+    payment.receivableInstallmentId,
+    result.receivableLedger.installments,
+    scenario.sourceOfferSnapshot.resultSnapshot.plannedPayments,
+  );
+  const paymentPreview = calculateActualPaymentFinancials(
+    { ...payment, id: 'payment_preview' },
+    paymentDefaults,
+  );
   const addPayment = (event: FormEvent) => {
     event.preventDefault();
     if (payment.amount <= 0 || !payment.date || payment.date > scenario.asOfDate) return;
@@ -322,6 +338,27 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
           tone={result.endingOpenReceivable > 0 ? 'negative' : 'neutral'}
         />
       </section>
+      <section className="metric-grid four">
+        <MetricCard
+          label="Gerçek kanal maliyeti"
+          value={formatMoney(result.actualPaymentChannelCost)}
+        />
+        <MetricCard
+          label="Gerçek GES ihtiyaç fazlası alımı"
+          value={formatMoney(result.actualExcessProductionPurchase)}
+        />
+        <MetricCard
+          label="Gerçek kredi / valör"
+          value={formatMoney(result.actualCreditCost)}
+          detail={`Valör ${formatMoney(result.actualValorIncome)}`}
+        />
+        <MetricCard
+          label="Açık finansman bakiyesi"
+          value={formatMoney(result.openFinancingBalance)}
+          detail={`Bitiş ${result.financingEndDate}`}
+          tone={result.openFinancingBalance > 0 ? 'negative' : 'neutral'}
+        />
+      </section>
       <section className="panel scenario-controls">
         <div className="form-grid three">
           <label className="field">
@@ -335,8 +372,17 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
             <span>Hesaplama tarihi</span>
             <input
               type="date"
-              value={scenario.asOfDate}
-              onChange={(event) => updateScenario({ asOfDate: event.target.value })}
+              value={asOfDateDraft}
+              onChange={(event) => {
+                const nextAsOfDate = event.target.value;
+                setAsOfDateDraft(nextAsOfDate);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(nextAsOfDate)) {
+                  updateScenario({ asOfDate: nextAsOfDate });
+                }
+              }}
+              onBlur={() => {
+                if (!asOfDateDraft) setAsOfDateDraft(scenario.asOfDate);
+              }}
             />
             <small>Gecikme bu tarihe kadar hesaplanır.</small>
           </label>
@@ -347,6 +393,44 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
             value={bulkRate}
             onValue={setBulkRate}
           />
+          <NumberField
+            label="Senaryo Yıllık Kredi Faizi"
+            unit="%"
+            min={0}
+            step="0.01"
+            value={scenario.financingOverrides?.creditRate ?? scenario.sourceOfferSnapshot.stateSnapshot.creditRate}
+            onValue={(creditRate) =>
+              updateScenario({
+                financingOverrides: { ...scenario.financingOverrides, creditRate },
+              })
+            }
+          />
+          <NumberField
+            label="Senaryo Yıllık Valör Faizi"
+            unit="%"
+            min={0}
+            step="0.01"
+            value={scenario.financingOverrides?.valorRate ?? scenario.sourceOfferSnapshot.stateSnapshot.valorRate}
+            onValue={(valorRate) =>
+              updateScenario({
+                financingOverrides: { ...scenario.financingOverrides, valorRate },
+              })
+            }
+          />
+          <div className="field align-end">
+            <button
+              type="button"
+              className="button ghost"
+              onClick={() => updateScenario({ financingOverrides: undefined })}
+            >
+              Kaynak teklif değerine dön
+            </button>
+          </div>
+        </div>
+        <div className="notice info">
+          Kredi yalnız negatif, valör yalnız pozitif faiz bazında 365 gün esasıyla
+          günlük bileşir. Finansman ortak sözleşme bakiyesinden dönem brüt fatura payıyla
+          dağıtılır; değişiklik kaynak teklifi etkilemez.
         </div>
         <div className="bulk-actions">
           <button
@@ -369,7 +453,7 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
           </div>
           <CirclePlus size={20} />
         </div>
-        <form className="form-grid five" onSubmit={addPayment}>
+        <form className="form-grid four" onSubmit={addPayment}>
           <label className="field">
             <span>Fatura / dönem</span>
             <select
@@ -386,16 +470,26 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
                   const installment = result.receivableLedger.installments.find(
                     (item) => item.id === id,
                   );
+                  const defaults = resolveActualPaymentCommissionDefaults(
+                    installment?.id,
+                    result.receivableLedger.installments,
+                    scenario.sourceOfferSnapshot.resultSnapshot.plannedPayments,
+                  );
                   setPayment({
                     ...payment,
                     invoiceId: installment?.invoiceId,
                     receivableInstallmentId: installment?.id,
+                    channel: defaults.paymentChannel ?? payment.channel,
+                    commissionRate: defaults.commissionRate,
+                    commissionBearer: defaults.commissionBearer,
                   });
                 } else
                   setPayment({
                     ...payment,
                     invoiceId: kind === 'invoice' ? id : undefined,
                     receivableInstallmentId: undefined,
+                    commissionRate: 0,
+                    commissionBearer: 'epsas',
                   });
               }}
             >
@@ -450,13 +544,54 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
               ))}
             </select>
           </label>
+          <NumberField
+            label="Komisyon oranı"
+            unit="%"
+            min={0}
+            max={100}
+            step="0.01"
+            value={payment.commissionRate ?? paymentDefaults.commissionRate}
+            onValue={(commissionRate) => setPayment({ ...payment, commissionRate })}
+          />
+          <label className="field">
+            <span>Komisyonu ödeyen</span>
+            <select
+              value={payment.commissionBearer ?? paymentDefaults.commissionBearer}
+              onChange={(event) =>
+                setPayment({
+                  ...payment,
+                  commissionBearer: event.target.value as 'epsas' | 'customer',
+                })
+              }
+            >
+              <option value="epsas">EPSAŞ</option>
+              <option value="customer">Müşteri</option>
+            </select>
+            <small>
+              {paymentDefaults.sourcePlannedPaymentId
+                ? 'Seçilen vade diliminin planlı satırından varsayılan getirildi.'
+                : 'Eşleşen vade yok: varsayılan %0 ve EPSAŞ.'}
+            </small>
+          </label>
+          <div className="field financial-preview">
+            <span>Tahmini EPSAŞ kanal maliyeti</span>
+            <strong>{formatMoney(paymentPreview.epsasChannelCost)}</strong>
+          </div>
+          <div className="field financial-preview">
+            <span>EPSAŞ net nakit girişi</span>
+            <strong>{formatMoney(paymentPreview.netCashIn)}</strong>
+          </div>
           <button className="button primary align-end">
             <Plus size={16} /> Tahsilat ekle
           </button>
         </form>
         {scenario.actualPayments.length > 0 && (
           <div className="payment-chips">
-            {scenario.actualPayments.map((item) => (
+            {scenario.actualPayments.map((item) => {
+              const financials = result.actualPaymentFinancials.find(
+                (candidate) => candidate.paymentId === item.id,
+              );
+              return (
               <div className="payment-chip" key={item.id}>
                 <CalendarClock size={16} />
                 <div>
@@ -468,6 +603,12 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
                       : item.invoiceId
                         ? `${item.invoiceId.replace('period_', '')}. dönem`
                         : 'Genel'}
+                  </small>
+                  <small>
+                    {PAYMENT_CHANNEL_LABELS[item.channel]} · EPSAŞ komisyonu{' '}
+                    {formatMoney(financials?.epsasChannelCost ?? 0)} · Müşteri kanal ücreti{' '}
+                    {formatMoney(financials?.customerChannelFee ?? 0)} · Net nakit{' '}
+                    {formatMoney(financials?.netCashIn ?? item.amount)}
                   </small>
                 </div>
                 <button
@@ -484,7 +625,8 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
                   <Trash2 size={15} />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -514,14 +656,15 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
                     }
                   />
                 </th>
+                <th>PTF / YEKDEM</th>
                 <th>Dönem</th>
                 <th>Planlanan fatura / vade</th>
-                <th>PTF / YEKDEM</th>
                 <th>Gerçek tahsilat</th>
                 <th>Açık ana para</th>
                 <th>Gecikme</th>
                 <th>Gecikme bedeli + KDV</th>
                 <th>Gerçek kredi / valör</th>
+                <th>Gerçek kanal / GES</th>
                 <th>Senaryo oranı</th>
                 <th>Kâr sapması</th>
               </tr>
@@ -623,6 +766,10 @@ function ScenarioDetail({ initialScenario }: { initialScenario: RealizationScena
                   <td>
                     {formatMoney(period.actualCreditCost)}
                     <small>Valör {formatMoney(period.actualValorIncome)}</small>
+                  </td>
+                  <td>
+                    {formatMoney(period.actualPaymentChannelCost)}
+                    <small>GES {formatMoney(period.actualExcessProductionPurchase)}</small>
                   </td>
                   <td>%{formatNumber(period.scenarioOfferRate)}</td>
                   <td className={period.variance >= 0 ? 'positive-text' : 'negative-text'}>

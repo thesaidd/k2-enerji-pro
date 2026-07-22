@@ -76,6 +76,10 @@ export const calculateInvoices = (
       gesSelfConsumptionSavings,
       imbalanceAmount: (activeEnergyBaseAmount * state.imbalanceRate) / 100,
       piuAmount: (activeEnergyBaseAmount * state.piuRate) / 100,
+      gridExportMwh: ges.gridExportMwh,
+      excessProductionMwh: ges.excessProductionMwh,
+      excessPurchasePrice: ges.excessPurchasePrice,
+      excessPurchaseAmount: ges.excessPurchaseAmount,
       marketPriceMonth,
       ptfUnitPrice: marketPrice.ptfUnitPrice,
       yekdemUnitPrice: marketPrice.yekdemUnitPrice,
@@ -83,17 +87,9 @@ export const calculateInvoices = (
       yekdemPriceSource: marketPrice.yekdemPriceSource,
     };
   });
-  const excessProductionPurchase = seeds.reduce((sum, seed) => {
-    const marketPriceMonth = seed.start.slice(0, 7);
-    const marketPrice = marketPrices?.find((item) => item.month === marketPriceMonth);
-    const ges = calculateGesPeriod(
-      seed.grossConsumptionMwh,
-      seed.share,
-      state.ges,
-      marketPrice?.ptfUnitPrice ?? state.ptfTlMwh,
-      marketPrice?.yekdemUnitPrice ?? state.yekdemTlMwh,
-    );
-    return sum + ges.excessPurchaseAmount;
-  }, 0);
+  const excessProductionPurchase = periods.reduce(
+    (sum, period) => sum + (period.excessPurchaseAmount ?? 0),
+    0,
+  );
   return { periods, excessProductionPurchase };
 };

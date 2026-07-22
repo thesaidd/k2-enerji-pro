@@ -10,6 +10,19 @@ export interface GesPeriodResult {
   excessPurchaseAmount: number;
 }
 
+export const resolveGesExcessPurchasePrice = (
+  ges: GesSettings,
+  ptfTlMwh: number,
+  yekdemTlMwh: number,
+): number =>
+  ges.priceType === 'ptf'
+    ? ptfTlMwh
+    : ges.priceType === 'ptf_yekdem'
+      ? ptfTlMwh + yekdemTlMwh
+      : ges.priceType === 'manual' || ges.priceType === 'regulated'
+        ? Math.max(0, ges.excessPurchasePrice ?? 0)
+        : 0;
+
 export const calculateGesPeriod = (
   grossConsumptionMwh: number,
   periodShare: number,
@@ -48,14 +61,7 @@ export const calculateGesPeriod = (
     0,
     (ges.excessAfterNettingMwh ?? gridExportMwh) * periodShare,
   );
-  const price =
-    ges.priceType === 'ptf'
-      ? ptfTlMwh
-      : ges.priceType === 'ptf_yekdem'
-        ? ptfTlMwh + yekdemTlMwh
-        : ges.priceType === 'manual' || ges.priceType === 'regulated'
-          ? Math.max(0, ges.excessPurchasePrice ?? 0)
-          : 0;
+  const price = resolveGesExcessPurchasePrice(ges, ptfTlMwh, yekdemTlMwh);
   return {
     grossConsumptionMwh,
     selfConsumptionMwh,

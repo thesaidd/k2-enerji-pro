@@ -469,6 +469,11 @@ export function CostCalculationPage() {
               </div>
             ) : (
               <>
+                {result.warnings.map((warning) => (
+                  <div className="notice warning" key={warning}>
+                    {warning}
+                  </div>
+                ))}
                 <div className="metric-grid four">
                   <MetricCard
                     icon={Landmark}

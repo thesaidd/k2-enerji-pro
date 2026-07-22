@@ -28,6 +28,8 @@ export type PaymentDateReference =
   | 'manual_date';
 export type GesMode = 'simple_self_consumption' | 'advanced_metering';
 export type MarketPriceSource = 'forecast' | 'actual' | 'legacy' | 'manual_override';
+export type CommissionBearer = 'epsas' | 'customer';
+export type ReconciliationStatus = 'reconciled' | 'difference' | 'not_calculated';
 
 export interface MonthlyMarketPrice {
   month: string;
@@ -176,6 +178,10 @@ export interface BillingPeriod {
   gesSelfConsumptionSavings: number;
   imbalanceAmount: number;
   piuAmount: number;
+  gridExportMwh?: number;
+  excessProductionMwh?: number;
+  excessPurchasePrice?: number;
+  excessPurchaseAmount?: number;
   marketPriceMonth?: string;
   ptfUnitPrice?: number;
   yekdemUnitPrice?: number;
@@ -215,6 +221,8 @@ export interface PlannedPayment {
   transactionDate: ISODate;
   settlementDate: ISODate;
   paymentChannel: PaymentChannel;
+  commissionRate?: number;
+  commissionBearer?: CommissionBearer;
   principalAmount: number;
   epsasChannelCost: number;
   customerChannelFee: number;
@@ -240,6 +248,32 @@ export interface DailyCashflowRow {
   notes: string[];
 }
 
+export interface DailyCashflowOptions {
+  calculationStartDate?: ISODate;
+  calculationEndDate?: ISODate;
+}
+
+export type ProfitComponent =
+  | 'offer_margin'
+  | 'imbalance'
+  | 'piu'
+  | 'payment_channel_cost'
+  | 'credit_interest'
+  | 'valor_income'
+  | 'excess_production_purchase'
+  | 'late_fee_income';
+
+export interface ProfitLedgerEntry {
+  id: string;
+  component: ProfitComponent;
+  economicMonth: string;
+  amount: number;
+  direction: 'income' | 'cost';
+  periodId?: string;
+  sourceId?: string;
+  note?: string;
+}
+
 export interface MonthlyProfitRow {
   month: string;
   consumptionMwh: number;
@@ -251,6 +285,14 @@ export interface MonthlyProfitRow {
   creditInterest: number;
   valorIncome: number;
   lateFeeIncome: number;
+  excessProductionPurchase: number;
+  supplierOutflows: number;
+  refunds: number;
+  lateFeeCashInflows: number;
+  cashCreditInterest: number;
+  cashValorIncome: number;
+  financingAllocationMethod: string;
+  reconciliationDifference: number;
   accrualProfit: number;
   cashInflows: number;
   cashOutflows: number;
@@ -301,6 +343,15 @@ export interface CalculationResult {
   cashEvents: CashEvent[];
   plannedCashflow: DailyCashflowRow[];
   monthlyProfit: MonthlyProfitRow[];
+  profitLedger: ProfitLedgerEntry[];
+  financingStartDate?: ISODate;
+  financingEndDate?: ISODate;
+  endingCashBalance: number;
+  openFinancingBalance: number;
+  effectiveCreditRate: number;
+  effectiveValorRate: number;
+  profitReconciliationDifference?: number;
+  cashReconciliationDifference?: number;
   totals: CalculationTotals;
   marketPriceSnapshot?: MarketPriceSnapshot[];
 }
@@ -340,7 +391,24 @@ export interface ActualPayment {
   date: ISODate;
   amount: number;
   channel: PaymentChannel;
+  commissionRate?: number;
+  commissionBearer?: CommissionBearer;
   note?: string;
+}
+
+export interface ActualPaymentFinancials {
+  paymentId: string;
+  principalAmount: number;
+  commissionRate: number;
+  commissionBearer: CommissionBearer;
+  epsasChannelCost: number;
+  customerChannelFee: number;
+  netCashIn: number;
+}
+
+export interface RealizationFinancingOverrides {
+  creditRate?: number;
+  valorRate?: number;
 }
 
 export interface ReceivablePaymentAllocation {
@@ -377,7 +445,9 @@ export interface ReceivableLedger {
 
 export interface PeriodRealizationOverride {
   periodId: string;
+  /** @deprecated Sözleşme bakiyesi ortaktır; financingOverrides kullanılır. */
   creditRate?: number;
+  /** @deprecated Sözleşme bakiyesi ortaktır; financingOverrides kullanılır. */
   valorRate?: number;
   scenarioOfferRate?: number;
   calculationDate?: ISODate;
@@ -476,8 +546,14 @@ export interface PeriodRealizationResult {
   delayDays: number;
   lateFee: number;
   lateFeeVat: number;
+  actualOfferMargin: number;
+  actualImbalance: number;
+  actualPiu: number;
+  actualPaymentChannelCost: number;
+  actualExcessProductionPurchase: number;
   actualCreditCost: number;
   actualValorIncome: number;
+  lateFeeIncome: number;
   scenarioOfferRate: number;
   plannedNetProfit: number;
   actualNetProfit: number;
@@ -499,12 +575,26 @@ export interface RealizationResult {
   finalLateFeeDocuments: LateFeeAccrualDocument[];
   actualCashflow: DailyCashflowRow[];
   monthlyProfit: MonthlyProfitRow[];
+  profitLedger: ProfitLedgerEntry[];
   plannedProfit: number;
   actualProfit: number;
   variance: number;
   totalLateFee: number;
   totalLateFeeVat: number;
   endingOpenReceivable: number;
+  actualPaymentFinancials: ActualPaymentFinancials[];
+  actualPaymentChannelCost: number;
+  actualExcessProductionPurchase: number;
+  actualCreditCost: number;
+  actualValorIncome: number;
+  effectiveCreditRate: number;
+  effectiveValorRate: number;
+  financingStartDate?: ISODate;
+  financingEndDate?: ISODate;
+  endingCashBalance: number;
+  openFinancingBalance: number;
+  profitReconciliationDifference?: number;
+  cashReconciliationDifference?: number;
   actualCashEvents?: CashEvent[];
   marketPriceWarnings?: string[];
 }
@@ -518,6 +608,7 @@ export interface RealizationScenario {
   name: string;
   asOfDate: ISODate;
   periodOverrides: PeriodRealizationOverride[];
+  financingOverrides?: RealizationFinancingOverrides;
   actualPayments: ActualPayment[];
   resultSnapshot: RealizationResult;
   createdAt: string;
@@ -583,6 +674,11 @@ export interface PaymentCalendarSummary {
   endingBalance: number;
   openReceivable: number;
   customerAdvance: number;
+  calculationEndDate: ISODate;
+  effectiveCreditRate: number;
+  effectiveValorRate: number;
+  totalExcessProductionPurchase: number;
+  openFinancingBalance: number;
 }
 
 export interface PaymentCalendarModel {

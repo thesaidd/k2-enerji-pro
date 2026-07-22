@@ -124,6 +124,10 @@ interface CalendarSource {
   customerName: string;
   sourceVersion: number;
   calculationDate: string;
+  calculationEndDate: string;
+  effectiveCreditRate: number;
+  effectiveValorRate: number;
+  excessProductionPurchaseTotal: number;
   policyVersion: string;
   priceSourceSummary: string;
   usageStart: string;
@@ -235,6 +239,11 @@ const buildModel = (source: CalendarSource): PaymentCalendarModel => {
     endingBalance: last?.closingBalance ?? 0,
     openReceivable: last?.openReceivable ?? 0,
     customerAdvance: last?.customerAdvance ?? 0,
+    calculationEndDate: source.calculationEndDate,
+    effectiveCreditRate: source.effectiveCreditRate,
+    effectiveValorRate: source.effectiveValorRate,
+    totalExcessProductionPurchase: source.excessProductionPurchaseTotal,
+    openFinancingBalance: Math.max(0, -(last?.closingBalance ?? 0)),
   };
   return { ...source, rows, summary };
 };
@@ -258,6 +267,11 @@ export const buildPlannedPaymentCalendar = (
     customerName,
     sourceVersion: offer.version,
     calculationDate: offer.resultSnapshot.calculatedAt,
+    calculationEndDate:
+      offer.resultSnapshot.financingEndDate ?? offer.resultSnapshot.plannedCashflow.at(-1)?.date ?? '',
+    effectiveCreditRate: offer.resultSnapshot.effectiveCreditRate ?? offer.stateSnapshot.creditRate,
+    effectiveValorRate: offer.resultSnapshot.effectiveValorRate ?? offer.stateSnapshot.valorRate,
+    excessProductionPurchaseTotal: offer.resultSnapshot.totals.excessProductionPurchase,
     policyVersion: offer.resultSnapshot.policyVersion,
     priceSourceSummary: snapshotSummary(offer.resultSnapshot.marketPriceSnapshot),
     usageStart: offer.stateSnapshot.usageStart,
@@ -309,6 +323,14 @@ export const buildRealizationPaymentCalendar = (
     customerName,
     sourceVersion: scenario.sourceOfferVersion,
     calculationDate: scenario.asOfDate,
+    calculationEndDate: result.financingEndDate ?? scenario.asOfDate,
+    effectiveCreditRate:
+      result.effectiveCreditRate ?? scenario.sourceOfferSnapshot.stateSnapshot.creditRate,
+    effectiveValorRate:
+      result.effectiveValorRate ?? scenario.sourceOfferSnapshot.stateSnapshot.valorRate,
+    excessProductionPurchaseTotal:
+      result.actualExcessProductionPurchase ??
+      scenario.sourceOfferSnapshot.resultSnapshot.totals.excessProductionPurchase,
     policyVersion: scenario.sourceOfferSnapshot.resultSnapshot.policyVersion,
     priceSourceSummary: snapshotSummary(priceSnapshot, 'realization'),
     usageStart: scenario.sourceOfferSnapshot.stateSnapshot.usageStart,
@@ -387,6 +409,12 @@ export const paymentCalendarToRows = (model: PaymentCalendarModel): unknown[][] 
   ['Kaynak', model.sourceTitle],
   ['Sürüm', model.sourceVersion],
   ['Hesaplama tarihi', model.calculationDate],
+  ['Finansman bitiş tarihi', model.summary.calculationEndDate],
+  ['Efektif kredi oranı', model.summary.effectiveCreditRate],
+  ['Efektif valör oranı', model.summary.effectiveValorRate],
+  ['Kanal maliyeti', model.summary.totalPaymentChannelCost],
+  ['GES ihtiyaç fazlası alımı', model.summary.totalExcessProductionPurchase],
+  ['Açık finansman bakiyesi', model.summary.openFinancingBalance],
   ['Politika', model.policyVersion],
   ['Fiyat veri kaynağı', model.priceSourceSummary],
   [],

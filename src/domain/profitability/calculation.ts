@@ -9,6 +9,11 @@ import {
 } from '../financing/financing';
 import { calculateMonthlyProfit } from './monthlyProfit';
 import {
+  buildPlannedProfitLedger,
+  cashflowNetEffect,
+  sumProfitLedger,
+} from './profitLedger';
+import {
   calculateReferenceInvoice,
   defaultComparisonSettings,
 } from '../comparison/tariffComparison';
@@ -39,6 +44,7 @@ interface CoreResult {
   payments: CalculationResult['plannedPayments'];
   cashEvents: CalculationResult['cashEvents'];
   cashflow: CalculationResult['plannedCashflow'];
+  profitLedger: CalculationResult['profitLedger'];
   warnings: string[];
   totals: Omit<
     CalculationTotals,
@@ -69,6 +75,7 @@ const calculateCore = (
     (a, b) => a.date.localeCompare(b.date),
   );
   const cashflow = buildDailyCashflow(cashEvents, state.creditRate, state.valorRate);
+  const profitLedger = buildPlannedProfitLedger(invoices.periods, settlement.payments, cashflow);
   const activeEnergyBaseAmount = sum(invoices.periods, (period) => period.activeEnergyBaseAmount);
   const offerMargin = sum(invoices.periods, (period) => period.offerMargin);
   const imbalanceAmount = sum(invoices.periods, (period) => period.imbalanceAmount);
@@ -82,16 +89,26 @@ const calculateCore = (
     creditCost -
     valorIncome +
     invoices.excessProductionPurchase;
-  const netProfit =
-    offerMargin - operationalCost - creditCost + valorIncome - invoices.excessProductionPurchase;
+  const netProfit = sumProfitLedger(profitLedger);
   const gridConsumptionMwh = sum(invoices.periods, (period) => period.gridConsumptionMwh);
+  const endingCashBalance = cashflow.at(-1)?.closingBalance ?? 0;
   return {
     state,
     periods: invoices.periods,
     payments: settlement.payments,
     cashEvents,
     cashflow,
-    warnings: settlement.warnings,
+    profitLedger,
+    warnings: [
+      ...settlement.warnings,
+      ...(endingCashBalance < -1e-6
+        ? [
+            `Planlanan nakit akışı ${cashflow.at(-1)!.date} tarihinde ${Math.abs(
+              endingCashBalance,
+            ).toFixed(2)} TL açık finansman bakiyesiyle sona eriyor.`,
+          ]
+        : []),
+    ],
     totals: {
       grossConsumptionMwh: sum(invoices.periods, (period) => period.grossConsumptionMwh),
       gesSelfConsumptionMwh: sum(invoices.periods, (period) => period.gesSelfConsumptionMwh),
@@ -172,6 +189,13 @@ const invalidResult = (
   cashEvents: [],
   plannedCashflow: [],
   monthlyProfit: [],
+  profitLedger: [],
+  endingCashBalance: 0,
+  openFinancingBalance: 0,
+  effectiveCreditRate: state.creditRate,
+  effectiveValorRate: state.valorRate,
+  profitReconciliationDifference: 0,
+  cashReconciliationDifference: 0,
   marketPriceSnapshot,
   totals: {
     grossConsumptionMwh: 0,
@@ -233,6 +257,8 @@ export const calculateOffer = (
       ? (core.totals.activeEnergyBaseAmount / core.totals.gridConsumptionMwh) *
         (1 + breakevenOfferRate / 100)
       : 0;
+  const monthlyProfit = calculateMonthlyProfit(core.periods, core.cashflow, core.profitLedger);
+  const endingCashBalance = core.cashflow.at(-1)?.closingBalance ?? 0;
   const partial: CalculationResult = {
     valid: true,
     errors: [],
@@ -244,11 +270,18 @@ export const calculateOffer = (
     plannedPayments: core.payments,
     cashEvents: core.cashEvents,
     plannedCashflow: core.cashflow,
-    monthlyProfit: calculateMonthlyProfit(
-      core.periods,
-      core.cashflow,
-      core.totals.paymentChannelCost,
-    ),
+    monthlyProfit,
+    profitLedger: core.profitLedger,
+    financingStartDate: core.cashflow[0]?.date,
+    financingEndDate: core.cashflow.at(-1)?.date,
+    endingCashBalance,
+    openFinancingBalance: Math.max(0, -endingCashBalance),
+    effectiveCreditRate: state.creditRate,
+    effectiveValorRate: state.valorRate,
+    profitReconciliationDifference:
+      sum(monthlyProfit, (row) => row.accrualProfit) - core.totals.netProfit,
+    cashReconciliationDifference:
+      sum(monthlyProfit, (row) => row.cashResult) - cashflowNetEffect(core.cashflow),
     marketPriceSnapshot: clone(marketPriceResolution.values),
     totals: { ...core.totals, breakevenOfferRate, breakevenUnitPrice, customerAdvantage: 0 },
   };
