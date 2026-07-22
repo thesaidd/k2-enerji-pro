@@ -131,6 +131,7 @@ export const DEFAULT_TARIFF_VERSIONS: TariffVersion[] = TARIFFS.map((tariff) => 
   id: `tariff-2026-${tariff.key}`,
   customerType: tariff.key,
   validFrom: '2026-01-01',
+  validTo: '2026-12-31',
   kdvRate: tariff.kdvDefault,
   btvRate: tariff.btvDefault,
   distributionUnitTlMwh: tariff.distributionTlMwh,

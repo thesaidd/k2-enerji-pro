@@ -79,6 +79,8 @@ const DATE_KEYS = new Set([
   'dueDate',
   'transactionDate',
   'settlementDate',
+  'applicationDate',
+  'availableDate',
   'validFrom',
   'validTo',
 ]);
@@ -98,6 +100,9 @@ const NON_NEGATIVE_KEYS = new Set([
   'principalAmount',
   'selfConsumptionRate',
   'excessPurchasePaymentOffsetDays',
+  'originalAmount',
+  'appliedAmount',
+  'remainingAmount',
 ]);
 
 const validateValues = (value: unknown, path = 'payload'): void => {
@@ -121,10 +126,15 @@ const validateValues = (value: unknown, path = 'payload'): void => {
   });
 };
 
+const normalizeTariffSource = <T extends PlannedOffer['stateSnapshot']>(state: T): T => ({
+  ...structuredClone(state),
+  tariffSourceMode: state.tariffSourceMode ?? 'legacy_numeric',
+});
+
 const normalizeOffer = (offer: PlannedOffer): PlannedOffer => ({
   ...structuredClone(offer),
   stateSnapshot: {
-    ...structuredClone(offer.stateSnapshot),
+    ...normalizeTariffSource(offer.stateSnapshot),
     ges: {
       ...structuredClone(offer.stateSnapshot.ges),
       excessPurchasePaymentOffsetDays:
@@ -148,9 +158,14 @@ const normalizeOffer = (offer: PlannedOffer): PlannedOffer => ({
   },
 });
 
+const normalizeDraft = (draft: CostDraft): CostDraft => ({
+  ...structuredClone(draft),
+  state: normalizeTariffSource(draft.state),
+});
+
 const normalizeCollections = (record: Record<string, unknown>): BackupCollections => {
   const customers = requiredArray<Customer>(record, 'customers');
-  const costDrafts = requiredArray<CostDraft>(record, 'costDrafts');
+  const costDrafts = requiredArray<CostDraft>(record, 'costDrafts').map(normalizeDraft);
   const plannedOffers = requiredArray<PlannedOffer>(record, 'plannedOffers').map(normalizeOffer);
   const realizationScenarios = requiredArray<RealizationScenario>(
     record,
@@ -161,6 +176,7 @@ const normalizeCollections = (record: Record<string, unknown>): BackupCollection
     sourceOfferSnapshot: normalizeOffer(scenario.sourceOfferSnapshot),
   }));
   const rawSettings = requiredArray<AppSettings>(record, 'settings');
+  if (rawSettings.length > 0) assertUniqueIds('settings', rawSettings);
   const settings = rawSettings.length > 0 ? rawSettings.map(normalizeAppSettings) : [normalizeAppSettings({})];
   assertUniqueIds('customers', customers);
   assertUniqueIds('costDrafts', costDrafts);
@@ -252,7 +268,9 @@ export const DataPortabilityService = {
       input && typeof input === 'object' && 'sourceFormat' in input
         ? (input as RestorePreview)
         : prepareRestore(input);
-    const payload = preview.payload;
+    const payload = normalizeCollections(
+      asRecord(preview.payload, 'Geri yükleme önizleme payload alanı geçersiz.'),
+    );
     await db.transaction(
       'rw',
       [db.customers, db.costDrafts, db.plannedOffers, db.realizationScenarios, db.settings],

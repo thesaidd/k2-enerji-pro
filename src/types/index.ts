@@ -99,6 +99,8 @@ export interface TariffPeriodOverride {
   reason: string;
 }
 
+export type TariffSourceMode = 'catalog' | 'explicit_override' | 'legacy_numeric';
+
 export interface TariffSnapshot {
   tariffId?: string;
   versionLabel: string;
@@ -108,6 +110,7 @@ export interface TariffSnapshot {
   btvRate: number;
   distributionUnitTlMwh: number;
   sourceLabel: string;
+  sourceMode?: TariffSourceMode;
   manualOverride: boolean;
   overrideReason?: string;
 }
@@ -186,6 +189,7 @@ export interface OfferState {
   ges: GesSettings;
   paymentPlan: PaymentPlan;
   tariffOverrides?: TariffPeriodOverride[];
+  tariffSourceMode?: TariffSourceMode;
 }
 
 export interface BillingPeriod {

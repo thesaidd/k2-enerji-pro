@@ -130,8 +130,8 @@ describe('P0-C tarife zorunlu ek senaryoları', () => {
   it('aynı dönemi kapsayan iki tarife kaydını reddeder', () => expect(resolveTariffForPeriod(base.customerType, '2026-07-01', '2026-07-31', [base, { ...base, id: 'other' }]).error).toContain('birden fazla'));
   it('dağıtımsız modelde katalog bedelini faturaya eklemez', () => expect(calculateOffer({ ...structuredClone(DEFAULT_OFFER_STATE), usageStart: '2026-07-01', usageEnd: '2026-07-31', hasDistribution: false, offerRate: 5 }).totals.distributionAmount).toBe(0));
   it('legacy sayısal tarife değerlerini metadata uyarısıyla korur', () => {
-    const result = calculateOffer({ ...structuredClone(DEFAULT_OFFER_STATE), usageStart: '2026-07-01', usageEnd: '2026-07-31', distributionUnitTlMwh: 123, offerRate: 5 });
-    expect(result.periods[0]?.tariffSnapshot).toMatchObject({ distributionUnitTlMwh: 123, manualOverride: true });
+    const result = calculateOffer({ ...structuredClone(DEFAULT_OFFER_STATE), usageStart: '2026-07-01', usageEnd: '2026-07-31', distributionUnitTlMwh: 123, tariffSourceMode: 'legacy_numeric', offerRate: 5 });
+    expect(result.periods[0]?.tariffSnapshot).toMatchObject({ distributionUnitTlMwh: 123, sourceMode: 'legacy_numeric', manualOverride: true });
   });
   it('manuel override kaynak katalog nesnesini değiştirmez', () => {
     const versions: TariffVersion[] = [structuredClone(base)];

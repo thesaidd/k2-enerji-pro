@@ -220,6 +220,7 @@ export const offerStateSchema = z
         }),
       )
       .optional(),
+    tariffSourceMode: z.enum(['catalog', 'explicit_override', 'legacy_numeric']).optional(),
   })
   .refine((state) => state.usageEnd >= state.usageStart, {
     path: ['usageEnd'],

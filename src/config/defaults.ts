@@ -37,6 +37,7 @@ export const DEFAULT_OFFER_STATE: OfferState = {
     excessPurchasePaymentOffsetDays: 10,
   },
   tariffOverrides: [],
+  tariffSourceMode: 'catalog',
   paymentPlan: createPaymentPlan(),
 };
 

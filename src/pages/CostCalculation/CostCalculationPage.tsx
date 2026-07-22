@@ -98,7 +98,8 @@ export function CostCalculationPage() {
   }, [saveStatus]);
   const update = <K extends keyof OfferState>(key: K, value: OfferState[K]) =>
     setDraft({ [key]: value } as Pick<OfferState, K>);
-  const applyTariff = (key: string) => setDraft(applyTariffDefaults(key, draft.hasDistribution));
+  const applyTariff = (key: string) =>
+    setDraft({ ...applyTariffDefaults(key, draft.hasDistribution), tariffSourceMode: 'catalog' });
   const updateTariffOverride = (
     month: string,
     patch: Partial<NonNullable<OfferState['tariffOverrides']>[number]> | null,
@@ -426,6 +427,12 @@ export function CostCalculationPage() {
                 onValue={(value) => update('btvRate', value)}
                 disabled
               />
+              {draft.tariffSourceMode === 'legacy_numeric' && (
+                <div className="notice warning span-3">
+                  <strong>Legacy taslak tarifesi:</strong> P0-C öncesi sayısal KDV, BTV ve dağıtım
+                  değerleri korunuyor. Katalog seçimini yenileyerek güncel tarife kaynağına geçebilirsiniz.
+                </div>
+              )}
               <div className="table-wrap span-3 wide-table">
                 <table aria-label="Dönemsel tarife kaynakları">
                   <thead>

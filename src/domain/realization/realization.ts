@@ -37,6 +37,8 @@ const sum = <T>(items: T[], value: (item: T) => number): number =>
 
 export const LEGACY_GES_WARNING =
   'Eski teklif snapshot’ında dönemsel GES verisi bulunmadığı için ihtiyaç fazlası alımı güvenli legacy yöntemle yeniden oluşturuldu.';
+export const LEGACY_TARIFF_WARNING =
+  'Eski teklif snapshot’ında dönemsel tarife metadata’sı bulunmadığı için KDV/BTV oranlarında legacy state değerleri kullanıldı.';
 
 const allocateLegacyGesAmount = (periods: BillingPeriod[], total: number): number[] => {
   if (periods.length === 0) return [];
@@ -57,6 +59,7 @@ interface ScenarioPeriodGesData {
   gridExportMwh: number;
   excessProductionMwh: number;
   excessPurchaseAmount?: number;
+  manualTaxAmount: number;
 }
 
 const scenarioPeriod = (
@@ -86,7 +89,8 @@ const scenarioPeriod = (
     marketPrice.yekdemUnitPrice,
   );
   const excessPurchaseAmount =
-    gesData.excessPurchaseAmount ?? gesData.excessProductionMwh * excessPurchasePrice;
+    gesData.excessPurchaseAmount ??
+    gesData.excessProductionMwh * excessPurchasePrice + gesData.manualTaxAmount;
   return {
     ...period,
     marketPriceMonth: marketPrice.month,
@@ -154,6 +158,13 @@ export const calculateRealization = (
     source.periods,
     Math.max(0, source.totals.excessProductionPurchase),
   );
+  const manualGesTaxAmounts = allocateLegacyGesAmount(
+    source.periods,
+    state.ges.excessProductionTaxMode === 'manual'
+      ? Math.max(0, state.ges.manualTaxAmountTl ?? 0)
+      : 0,
+  );
+  const legacyTariffUsed = source.periods.some((period) => !period.tariffSnapshot);
   const adjustedPeriods = periodContexts.map(({ period, override, marketPrice }, index) => {
     const legacyPhysicalMissing =
       state.ges.mode === 'advanced_metering' &&
@@ -171,8 +182,8 @@ export const calculateRealization = (
     return scenarioPeriod(
       period,
       override?.scenarioOfferRate ?? state.offerRate ?? 0,
-      state.btvRate,
-      state.kdvRate,
+      period.tariffSnapshot?.btvRate ?? state.btvRate,
+      period.tariffSnapshot?.kdvRate ?? state.kdvRate,
       state.imbalanceRate,
       state.piuRate,
       marketPrice,
@@ -183,6 +194,7 @@ export const calculateRealization = (
           period.excessProductionMwh ??
           (useAmountFallback ? 0 : (reconstructed?.excessProductionMwh ?? 0)),
         excessPurchaseAmount: useAmountFallback ? legacyGesAmounts[index] : undefined,
+        manualTaxAmount: useAmountFallback ? 0 : (manualGesTaxAmounts[index] ?? 0),
       },
     );
   });
@@ -448,6 +460,7 @@ export const calculateRealization = (
     actualCashEvents,
     marketPriceWarnings: [
       ...(legacyGesUsed ? [LEGACY_GES_WARNING] : []),
+      ...(legacyTariffUsed ? [LEGACY_TARIFF_WARNING] : []),
       ...new Set(periods.flatMap((period) => period.marketPriceWarnings ?? [])),
     ],
     actualRefundTotal: refundedAdvance,

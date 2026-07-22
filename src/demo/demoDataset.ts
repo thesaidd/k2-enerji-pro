@@ -97,6 +97,7 @@ const offer = (
 
 const buildDataset = () => {
   const standard = offer('demo-offer-standard', customers[0]!.id, 'Demo Standart Vadeli', 'standard_deferred');
+  standard.paymentPlanSnapshot.reconciliation.overpaymentAction = 'refund_after_days';
   const advance = offer('demo-offer-advance', customers[0]!.id, 'Demo Tam Ön Ödeme', 'full_advance');
   const partial = offer('demo-offer-partial', customers[1]!.id, 'Demo Kısmi Avans + Kalan', 'partial_advance_balance');
   const cardPlan = createPaymentPlan('card_single');

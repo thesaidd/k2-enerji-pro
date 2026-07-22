@@ -70,6 +70,52 @@ export function SettingsPage() {
     setLoadedTariffSignature(tariffSignature);
     setTariffVersions(structuredClone(settings.tariffVersions ?? []));
   }
+  const addTariffVersion = () => {
+    const source = tariffVersions[0];
+    const timestamp = new Date().toISOString();
+    setTariffVersions([
+      ...tariffVersions,
+      {
+        id: `tariff-${Date.now()}`,
+        customerType: source?.customerType ?? 'tek-terimli-ag-sanayi',
+        validFrom: '',
+        validTo: undefined,
+        kdvRate: source?.kdvRate ?? 20,
+        btvRate: source?.btvRate ?? 1,
+        distributionUnitTlMwh: source?.distributionUnitTlMwh ?? 0,
+        sourceLabel: '',
+        versionLabel: '',
+        active: false,
+        updatedAt: timestamp,
+      },
+    ]);
+  };
+  const copyTariffVersion = (index: number) => {
+    const source = tariffVersions[index];
+    if (!source) return;
+    setTariffVersions([
+      ...tariffVersions,
+      {
+        ...structuredClone(source),
+        id: `${source.id}-copy-${Date.now()}`,
+        versionLabel: `${source.versionLabel} kopya`,
+        active: false,
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+  };
+  const saveTariffVersions = async () => {
+    try {
+      await updateSettings({ tariffVersions });
+      notify({ tone: 'success', title: 'Tarife kataloğu kaydedildi' });
+    } catch (error) {
+      notify({
+        tone: 'error',
+        title: 'Tarife kataloğu kaydedilemedi',
+        detail: error instanceof Error ? error.message : 'Tarife doğrulama hatası',
+      });
+    }
+  };
   const addMarketPrice = () => {
     if (marketPrices.some((record) => !record.month)) {
       notify({ tone: 'warning', title: 'Önce boş ay satırını tamamlayın' });
@@ -334,16 +380,14 @@ export function SettingsPage() {
               <span className="eyebrow">TARİFE KATALOĞU</span>
               <h2>Tarihli demo tarife versiyonları</h2>
             </div>
-            <button
-              className="button secondary"
-              onClick={() =>
-                void updateSettings({ tariffVersions }).then(() =>
-                  notify({ tone: 'success', title: 'Tarife kataloğu kaydedildi' }),
-                )
-              }
-            >
-              <Save size={16} /> Tarifeleri kaydet
-            </button>
+            <div className="page-actions">
+              <button className="button ghost" onClick={addTariffVersion}>
+                <Plus size={16} /> Yeni tarife versiyonu
+              </button>
+              <button className="button secondary" onClick={() => void saveTariffVersions()}>
+                <Save size={16} /> Tarifeleri kaydet
+              </button>
+            </div>
           </div>
           <p className="muted">
             Bir dönem için tam bir aktif tarife bulunamazsa nihai teklif engellenir. Sistem eski
@@ -360,6 +404,7 @@ export function SettingsPage() {
                   <th>BTV</th>
                   <th>Dağıtım</th>
                   <th>Kaynak / sürüm</th>
+                  <th>İşlem</th>
                 </tr>
               </thead>
               <tbody>
@@ -382,15 +427,24 @@ export function SettingsPage() {
                           onChange={(event) => patchTariff({ active: event.target.checked })}
                         />
                       </td>
-                      <td>{tariff.customerType}</td>
+                      <td><input aria-label={`${tariff.id} müşteri tipi`} value={tariff.customerType} onChange={(event) => patchTariff({ customerType: event.target.value })} /></td>
                       <td>
                         <input aria-label={`${tariff.customerType} başlangıç`} type="date" value={tariff.validFrom} onChange={(event) => patchTariff({ validFrom: event.target.value })} />
                         <input aria-label={`${tariff.customerType} bitiş`} type="date" value={tariff.validTo ?? ''} onChange={(event) => patchTariff({ validTo: event.target.value || undefined })} />
                       </td>
-                      <td><input aria-label={`${tariff.customerType} tarife KDV`} type="number" min="0" max="100" value={tariff.kdvRate} onChange={(event) => patchTariff({ kdvRate: Number(event.target.value) })} /></td>
-                      <td><input aria-label={`${tariff.customerType} tarife BTV`} type="number" min="0" max="100" value={tariff.btvRate} onChange={(event) => patchTariff({ btvRate: Number(event.target.value) })} /></td>
-                      <td><input aria-label={`${tariff.customerType} tarife dağıtım`} type="number" min="0" value={tariff.distributionUnitTlMwh} onChange={(event) => patchTariff({ distributionUnitTlMwh: Number(event.target.value) })} /></td>
-                      <td>{tariff.sourceLabel} · {tariff.versionLabel}</td>
+                      <td><input aria-label={`${tariff.customerType} tarife KDV`} type="number" min="0" max="100" value={Number.isFinite(tariff.kdvRate) ? tariff.kdvRate : ''} onChange={(event) => patchTariff({ kdvRate: event.target.value === '' ? Number.NaN : Number(event.target.value) })} /></td>
+                      <td><input aria-label={`${tariff.customerType} tarife BTV`} type="number" min="0" max="100" value={Number.isFinite(tariff.btvRate) ? tariff.btvRate : ''} onChange={(event) => patchTariff({ btvRate: event.target.value === '' ? Number.NaN : Number(event.target.value) })} /></td>
+                      <td><input aria-label={`${tariff.customerType} tarife dağıtım`} type="number" min="0" value={Number.isFinite(tariff.distributionUnitTlMwh) ? tariff.distributionUnitTlMwh : ''} onChange={(event) => patchTariff({ distributionUnitTlMwh: event.target.value === '' ? Number.NaN : Number(event.target.value) })} /></td>
+                      <td>
+                        <input aria-label={`${tariff.id} kaynak etiketi`} value={tariff.sourceLabel} onChange={(event) => patchTariff({ sourceLabel: event.target.value })} />
+                        <input aria-label={`${tariff.id} sürüm etiketi`} value={tariff.versionLabel} onChange={(event) => patchTariff({ versionLabel: event.target.value })} />
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button className="icon-button" aria-label={`${tariff.id} kopyala`} title="Kopyala" onClick={() => copyTariffVersion(index)}>K</button>
+                          <button className="icon-button danger" aria-label={`${tariff.id} sil`} title="Sil" onClick={() => setTariffVersions(tariffVersions.filter((_, candidateIndex) => candidateIndex !== index))}><Trash2 size={15} /></button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}

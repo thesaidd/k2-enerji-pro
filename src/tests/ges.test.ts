@@ -41,6 +41,7 @@ describe('GES öz tüketim modeli', () => {
       offerRate: 0,
       btvRate: 5,
       kdvRate: 20,
+      tariffSourceMode: 'legacy_numeric',
       creditRate: 0,
       valorRate: 0,
       ges: {

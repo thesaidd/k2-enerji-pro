@@ -3,6 +3,7 @@ import { DEFAULT_OFFER_STATE, DEFAULT_SETTINGS } from '../config/defaults';
 import { calculateOffer } from '../domain/profitability/calculation';
 import {
   BACKUP_SCHEMA_VERSION,
+  DataPortabilityService,
   prepareRestore,
   type BackupCollections,
 } from '../services/storage/DataPortabilityService';
@@ -66,6 +67,18 @@ describe('P0-C güvenli yedek önizleme ve migration', () => {
   it('eski K2-ENERJIPRO-3.0 zarfını açar ve güvenli alanları normalize eder', () => {
     const payload = collections();
     delete payload.plannedOffers[0]!.stateSnapshot.ges.excessPurchasePaymentOffsetDays;
+    delete payload.plannedOffers[0]!.stateSnapshot.tariffSourceMode;
+    payload.costDrafts.push({
+      id: 'legacy-draft',
+      recordType: 'cost_draft',
+      customerId: 'customer',
+      title: 'Legacy taslak',
+      state: structuredClone(payload.plannedOffers[0]!.stateSnapshot),
+      paymentPlan: structuredClone(payload.plannedOffers[0]!.paymentPlanSnapshot),
+      resultSnapshot: structuredClone(payload.plannedOffers[0]!.resultSnapshot),
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
     const preview = prepareRestore({
       version: 'K2-ENERJIPRO-3.0',
       exportedAt: '2026-07-01T00:00:00.000Z',
@@ -76,6 +89,8 @@ describe('P0-C güvenli yedek önizleme ve migration', () => {
     expect(
       preview.payload.plannedOffers[0]?.stateSnapshot.ges.excessPurchasePaymentOffsetDays,
     ).toBe(10);
+    expect(preview.payload.plannedOffers[0]?.stateSnapshot.tariffSourceMode).toBe('legacy_numeric');
+    expect(preview.payload.costDrafts[0]?.state.tariffSourceMode).toBe('legacy_numeric');
   });
 
   it('geçersiz zarf ve koleksiyonu yazma aşamasından önce reddeder', () => {
@@ -108,5 +123,37 @@ describe('P0-C güvenli yedek önizleme ve migration', () => {
     expect(() =>
       prepareRestore({ version: 'K2-ENERJIPRO-3.0', exportedAt: '', ...nonFinite }),
     ).toThrow(/finite/i);
+  });
+
+  it('yinelenen settings ve tarife versiyon kimliklerini reddeder', () => {
+    const duplicateSettings = collections();
+    duplicateSettings.settings.push(structuredClone(duplicateSettings.settings[0]!));
+    expect(() =>
+      prepareRestore({ version: 'K2-ENERJIPRO-3.0', exportedAt: '', ...duplicateSettings }),
+    ).toThrow(/settings.*yinelenen id/i);
+
+    const duplicateTariff = collections();
+    duplicateTariff.settings[0]!.tariffVersions!.push(
+      structuredClone(duplicateTariff.settings[0]!.tariffVersions![0]!),
+    );
+    expect(() =>
+      prepareRestore({ version: 'K2-ENERJIPRO-3.0', exportedAt: '', ...duplicateTariff }),
+    ).toThrow(/tarife versiyon kimliği yinelenemez/i);
+  });
+
+  it('restore preview değiştirilse bile payloadı DB temizlemeden yeniden doğrular', async () => {
+    const preview = prepareRestore({
+      format: 'K2-ENERJIPRO',
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      appVersion: '3.0.0',
+      exportedAt: '2026-07-01T00:00:00.000Z',
+      payload: collections(),
+    });
+    preview.payload.settings[0]!.tariffVersions!.push(
+      structuredClone(preview.payload.settings[0]!.tariffVersions![0]!),
+    );
+    await expect(DataPortabilityService.restore(preview)).rejects.toThrow(
+      /tarife versiyon kimliği yinelenemez/i,
+    );
   });
 });

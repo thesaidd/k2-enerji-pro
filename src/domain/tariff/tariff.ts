@@ -38,6 +38,7 @@ export const resolveTariffForPeriod = (
         btvRate: override.btvRate,
         distributionUnitTlMwh: override.distributionUnitTlMwh,
         sourceLabel: source?.sourceLabel ?? 'Manuel tarife override',
+        sourceMode: 'explicit_override',
         manualOverride: true,
         overrideReason: override.reason.trim(),
       },
@@ -59,6 +60,7 @@ export const resolveTariffForPeriod = (
         btvRate: tariff.btvRate,
         distributionUnitTlMwh: tariff.distributionUnitTlMwh,
         sourceLabel: tariff.sourceLabel,
+        sourceMode: 'catalog',
         manualOverride: false,
       },
     };
@@ -96,3 +98,29 @@ export const validateTariffPeriods = (
     );
     return resolution.error ? [resolution.error] : [];
   });
+
+export const validateTariffVersions = (versions: TariffVersion[]): string[] => {
+  const errors: string[] = [];
+  const ids = new Set<string>();
+  for (const tariff of versions) {
+    if (ids.has(tariff.id)) errors.push(`Tarife versiyon kimliği yinelenemez: ${tariff.id}`);
+    ids.add(tariff.id);
+    if (tariff.validTo && tariff.validFrom > tariff.validTo)
+      errors.push(`${tariff.id} için geçerlilik başlangıcı bitişten sonra olamaz.`);
+  }
+  const active = versions.filter((tariff) => tariff.active);
+  for (let index = 0; index < active.length; index += 1) {
+    for (let candidateIndex = index + 1; candidateIndex < active.length; candidateIndex += 1) {
+      const left = active[index]!;
+      const right = active[candidateIndex]!;
+      if (left.customerType !== right.customerType) continue;
+      const leftEnd = left.validTo ?? '9999-12-31';
+      const rightEnd = right.validTo ?? '9999-12-31';
+      if (left.validFrom <= rightEnd && right.validFrom <= leftEnd)
+        errors.push(
+          `${left.customerType} için aktif tarife dönemleri çakışıyor: ${left.id} / ${right.id}`,
+        );
+    }
+  }
+  return errors;
+};

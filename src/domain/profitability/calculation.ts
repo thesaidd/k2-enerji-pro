@@ -43,6 +43,13 @@ export const normalizeOfferState = (input: Partial<OfferState>): OfferState => (
   ges: { ...clone(DEFAULT_OFFER_STATE.ges), ...clone(input.ges ?? {}) },
   paymentPlan: clone(input.paymentPlan ?? DEFAULT_OFFER_STATE.paymentPlan),
   tariffOverrides: clone(input.tariffOverrides ?? []),
+  tariffSourceMode:
+    input.tariffSourceMode ??
+    (Object.prototype.hasOwnProperty.call(input, 'kdvRate') ||
+    Object.prototype.hasOwnProperty.call(input, 'btvRate') ||
+    Object.prototype.hasOwnProperty.call(input, 'distributionUnitTlMwh')
+      ? 'legacy_numeric'
+      : 'catalog'),
 });
 
 interface CoreResult {

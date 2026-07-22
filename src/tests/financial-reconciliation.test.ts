@@ -254,6 +254,9 @@ describe('gerçek tahsilat kanal maliyeti', () => {
 
   it('avans kalan tahsilatın kanal maliyetini sözleşme toplamından kaybetmez', () => {
     const offer = offerFor();
+    offer.stateSnapshot.paymentPlan.reconciliation.enabled = false;
+    offer.paymentPlanSnapshot.reconciliation.enabled = false;
+    offer.resultSnapshot.state.paymentPlan.reconciliation.enabled = false;
     const payment: ActualPayment = {
       id: 'advance',
       date: '2026-06-01',

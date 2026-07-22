@@ -32,18 +32,16 @@ export const calculateInvoices = (
       (override) => override.month === seed.start.slice(0, 7),
     );
     const hasLegacyNumericOverride =
-      !hasExplicitPeriodOverride &&
-      (Math.abs(state.kdvRate - resolvedTariff.kdvRate) > 1e-9 ||
-        Math.abs(state.btvRate - resolvedTariff.btvRate) > 1e-9 ||
-        Math.abs(state.distributionUnitTlMwh - resolvedTariff.distributionUnitTlMwh) > 1e-9);
+      !hasExplicitPeriodOverride && state.tariffSourceMode === 'legacy_numeric';
     const tariff = hasLegacyNumericOverride
       ? {
           ...resolvedTariff,
           kdvRate: state.kdvRate,
           btvRate: state.btvRate,
           distributionUnitTlMwh: state.distributionUnitTlMwh,
+          sourceMode: 'legacy_numeric' as const,
           manualOverride: true,
-          overrideReason: 'Legacy snapshot — dönemsel tarife metadata’sı bulunmuyor.',
+          overrideReason: 'Legacy taslak — P0-C öncesi sayısal tarife değerleri korunmuştur.',
         }
       : resolvedTariff;
     const marketPriceMonth = seed.start.slice(0, 7);

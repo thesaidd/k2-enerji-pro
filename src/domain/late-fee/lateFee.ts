@@ -103,7 +103,7 @@ export const calculateReceivableInstallmentDelinquency = (
     receivableInstallmentId: allocation.receivableInstallmentId,
     date: allocation.date,
     amount: allocation.amount,
-    channel: 'other',
+    channel: 'other' as const,
   })).concat(
     (installment.advanceApplications ?? []).map((application) => ({
       id: application.id,
