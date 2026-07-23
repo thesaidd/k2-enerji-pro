@@ -1,0 +1,177 @@
+[
+  {
+    "id": "FIN-03",
+    "rows": [
+      {
+        "date": "2026-07-10",
+        "openingBalance": 0,
+        "supplierOutflows": 0,
+        "customerInflows": 1000,
+        "lateFeeInflows": 0,
+        "refunds": 0,
+        "paymentChannelCosts": 0,
+        "balanceAfterOutflows": 0,
+        "interestBase": 0,
+        "creditInterest": 0,
+        "valorInterest": 0,
+        "closingBalance": 1000,
+        "notes": [
+          "Tahsilat"
+        ]
+      },
+      {
+        "date": "2026-07-11",
+        "openingBalance": 1000,
+        "supplierOutflows": 0,
+        "customerInflows": 0,
+        "lateFeeInflows": 0,
+        "refunds": 0,
+        "paymentChannelCosts": 0,
+        "balanceAfterOutflows": 1000,
+        "interestBase": 1000,
+        "creditInterest": 0,
+        "valorInterest": 1.0958904109589043,
+        "closingBalance": 1001.0958904109589,
+        "notes": []
+      }
+    ]
+  },
+  {
+    "id": "FIN-04",
+    "rows": [
+      {
+        "date": "2026-07-10",
+        "openingBalance": 0,
+        "supplierOutflows": 1000,
+        "customerInflows": 0,
+        "lateFeeInflows": 0,
+        "refunds": 0,
+        "paymentChannelCosts": 0,
+        "balanceAfterOutflows": -1000,
+        "interestBase": -1000,
+        "creditInterest": 1.3424657534246573,
+        "valorInterest": 0,
+        "closingBalance": -1001.3424657534247,
+        "notes": [
+          "Cuma çıkışı"
+        ]
+      },
+      {
+        "date": "2026-07-11",
+        "openingBalance": -1001.3424657534247,
+        "supplierOutflows": 0,
+        "customerInflows": 0,
+        "lateFeeInflows": 0,
+        "refunds": 0,
+        "paymentChannelCosts": 0,
+        "balanceAfterOutflows": -1001.3424657534247,
+        "interestBase": -1001.3424657534247,
+        "creditInterest": 1.3442679677237754,
+        "valorInterest": 0,
+        "closingBalance": -1002.6867337211485,
+        "notes": []
+      },
+      {
+        "date": "2026-07-12",
+        "openingBalance": -1002.6867337211485,
+        "supplierOutflows": 0,
+        "customerInflows": 0,
+        "lateFeeInflows": 0,
+        "refunds": 0,
+        "paymentChannelCosts": 0,
+        "balanceAfterOutflows": -1002.6867337211485,
+        "interestBase": -1002.6867337211485,
+        "creditInterest": 1.3460726014338704,
+        "valorInterest": 0,
+        "closingBalance": -1004.0328063225824,
+        "notes": []
+      },
+      {
+        "date": "2026-07-13",
+        "openingBalance": -1004.0328063225824,
+        "supplierOutflows": 0,
+        "customerInflows": 0,
+        "lateFeeInflows": 0,
+        "refunds": 0,
+        "paymentChannelCosts": 0,
+        "balanceAfterOutflows": -1004.0328063225824,
+        "interestBase": -1004.0328063225824,
+        "creditInterest": 1.3478796578029186,
+        "valorInterest": 0,
+        "closingBalance": -1005.3806859803852,
+        "notes": []
+      }
+    ]
+  },
+  {
+    "id": "FIN-05",
+    "rows": [
+      {
+        "date": "2026-07-14",
+        "openingBalance": 0,
+        "supplierOutflows": 1000,
+        "customerInflows": 0,
+        "lateFeeInflows": 0,
+        "refunds": 0,
+        "paymentChannelCosts": 0,
+        "balanceAfterOutflows": -1000,
+        "interestBase": -1000,
+        "creditInterest": 1.3424657534246573,
+        "valorInterest": 0,
+        "closingBalance": -1001.3424657534247,
+        "notes": [
+          "Tatil öncesi çıkış"
+        ]
+      },
+      {
+        "date": "2026-07-15",
+        "openingBalance": -1001.3424657534247,
+        "supplierOutflows": 0,
+        "customerInflows": 0,
+        "lateFeeInflows": 0,
+        "refunds": 0,
+        "paymentChannelCosts": 0,
+        "balanceAfterOutflows": -1001.3424657534247,
+        "interestBase": -1001.3424657534247,
+        "creditInterest": 1.3442679677237754,
+        "valorInterest": 0,
+        "closingBalance": -1002.6867337211485,
+        "notes": []
+      },
+      {
+        "date": "2026-07-16",
+        "openingBalance": -1002.6867337211485,
+        "supplierOutflows": 0,
+        "customerInflows": 0,
+        "lateFeeInflows": 0,
+        "refunds": 0,
+        "paymentChannelCosts": 0,
+        "balanceAfterOutflows": -1002.6867337211485,
+        "interestBase": -1002.6867337211485,
+        "creditInterest": 1.3460726014338704,
+        "valorInterest": 0,
+        "closingBalance": -1004.0328063225824,
+        "notes": []
+      }
+    ]
+  },
+  {
+    "id": "FIN-06",
+    "scenarios": [
+      {
+        "scenarioId": "cift-terimli-og-sanayi__standard_deferred__late_10_days__off",
+        "creditCost": 25922.6358523629,
+        "openReceivable": 0,
+        "maximumOpenFinancing": 84442.43945703568,
+        "financingCloseDate": ""
+      },
+      {
+        "scenarioId": "cift-terimli-og-ticarethane__standard_deferred__late_10_days__off",
+        "creditCost": 25081.28226080954,
+        "openReceivable": 0,
+        "maximumOpenFinancing": 88266.57499295687,
+        "financingCloseDate": ""
+      }
+    ]
+  }
+]
