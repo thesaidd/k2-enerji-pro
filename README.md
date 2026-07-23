@@ -1,100 +1,94 @@
-# K2 EnerjiPro 3.0
+<div align="center">
 
-## Projenin amacı
+# K2 EnerjiPro 3.0.3
 
-K2 EnerjiPro 3.0, tek HTML dosyasındaki 2.17 demosunu modüler, test edilebilir ve tarayıcıda kalıcı veri saklayan bir frontend uygulamasına dönüştürür. Müşteri, maliyet, teklif, ödeme planı, gerçekleşme, gecikme, finansman, aylık kâr, grafik ve rapor akışları birbirinden ayrılmış domain modülleriyle hesaplanır.
+**Elektrik perakende satış şirketleri için teklif, ödeme planı, finansman ve gerçekleşme simülasyonu**
 
-Kaynak `k2-pro-version_chat-2.17.html` yalnızca referans olarak incelenmiştir; 3.0 projesi ayrı klasördedir ve kaynak dosyayı değiştirmez.
+[![Version](https://img.shields.io/badge/version-3.0.3-2563eb)](./package.json)
+[![Status](https://img.shields.io/badge/status-demo%20ready-16a34a)](./docs/user-guide/K2_EnerjiPro_3.0.3_Kullanici_Rehberi.pdf)
+[![Unit Tests](https://img.shields.io/badge/unit%20tests-317%20passing-16a34a)](#testler)
+[![E2E](https://img.shields.io/badge/e2e-6%20passing-16a34a)](#testler)
+[![React](https://img.shields.io/badge/React-TypeScript-149eca)](https://react.dev/)
 
-## Teknoloji yığını
+K2 EnerjiPro; enerji satış tekliflerini, dönemsel tarifeleri, ödeme planlarını, günlük nakit akışını ve gerçekleşen finansal sonuçları tek bir uygulamada analiz eden modüler bir frontend projesidir.
 
-- Vite, React ve TypeScript (`strict`)
-- React Router
-- Zustand
-- Dexie / IndexedDB
-- Zod
-- date-fns
-- Recharts
-- Vitest, React Testing Library ve V8 coverage
-- Playwright
-- ESLint ve Prettier
+[Hızlı Başlangıç](#hızlı-başlangıç) · [Özellikler](#öne-çıkan-özellikler) · [Mimari](#mimari) · [Kullanıcı Rehberi](./docs/user-guide/K2_EnerjiPro_3.0.3_Kullanici_Rehberi.pdf)
 
-## Kurulum
+</div>
 
-Gereksinim: güncel Node.js ve npm.
+![K2 EnerjiPro hesaplama özeti](docs/user-guide/screenshots/11-calculation-summary.png)
 
-```bash
-npm install
-npx playwright install chromium
-```
+> [!IMPORTANT]
+> Bu sürüm kontrollü yerel demo ve sunum kullanımı içindir. Resmî fatura, muhasebe veya canlı enerji piyasası entegrasyonu değildir.
 
-## Çalıştırma
+## Proje özeti
 
-```bash
-npm run dev
-```
+K2 EnerjiPro, elektrik perakende satış şirketlerinin tüketicilere sunduğu ikili anlaşmalar için aşağıdaki süreçleri birlikte modellemek amacıyla geliştirilmiştir:
 
-Uygulama varsayılan olarak `http://localhost:4173` adresinde açılır.
+- tüketim ve dönem bazlı teklif hesaplama,
+- aylık PTF ve YEKDEM fiyatları,
+- tarihli tarife versiyonları,
+- esnek ödeme planları ve komisyonlar,
+- müşteri avansı ve açık alacak mutabakatı,
+- günlük kredi/valör finansmanı,
+- gerçekleşen tüketim ve tahsilatlar,
+- gecikme bedeli,
+- GES öz tüketim ve ihtiyaç fazlası maliyeti,
+- aylık tahakkuk/nakit kârlılığı,
+- müşteri ve şirket içi raporlar.
 
-## Build
+İlk tek dosyalık demo, bu sürümde ayrıştırılmış domain modülleri, kalıcı tarayıcı verisi, sürümlü snapshot yapısı ve kapsamlı otomatik testlerle yeniden tasarlanmıştır.
 
-```bash
-npm run build
-npm run preview
-```
+## Öne çıkan özellikler
 
-Üretim çıktısı `dist/` klasörüne yazılır. `npm run build`, önce TypeScript project build çalıştırdığı için strict tip hatalarında durur.
+| Alan | Yetenek |
+|---|---|
+| **Teklif motoru** | Çok aylı tüketim, PTF/YEKDEM, teklif marjı, dağıtım, BTV, KDV ve sözleşme gücü |
+| **Tarife yönetimi** | `validFrom` / `validTo` destekli dönemsel tarife versiyonları ve gerekçeli manuel override |
+| **Ödeme planı** | 9 hazır şablon, özel plan editörü, taksit, komisyon, banka valörü ve çoklu ödeme satırları |
+| **Mutabakat** | Fazla ödemeyi taşıma/iade etme; eksik ödemeyi tahsil etme, taşıma veya açık bırakma |
+| **Finansman** | Günlük bileşik kredi maliyeti, valör getirisi ve açık finansman bakiyesi |
+| **Gerçekleşme** | Gerçek tüketim, piyasa fiyatı, tahsilat, komisyon, iade ve finansman override’ları |
+| **GES** | Basit öz tüketim, gelişmiş sayaç modeli, aylık/manual mahsuplaşma ve ihtiyaç fazlası nakit çıkışı |
+| **Gecikme** | Kısmi ödemeleri dikkate alan segment bazlı gecikme bedeli ve gecikme KDV’si |
+| **Kârlılık** | Planlanan/gerçekleşen profit ledger, aylık tahakkuk ve aylık nakit görünümü |
+| **Raporlama** | Müşteri teklif raporu, şirket içi analiz, CSV, JSON ve tarayıcı tabanlı PDF |
+| **Veri güvenliği** | IndexedDB, sürümlü JSON yedeği, restore önizlemesi ve transaction güvenliği |
+| **Demo deneyimi** | Deterministik demo veri seti, seçici demo temizleme ve gerçek UI rehberi |
 
-## Testler
+## Ekran görüntüleri
 
-```bash
-npm run test
-npm run test:coverage
-npm run test:e2e
-npm run lint
-```
+<table>
+  <tr>
+    <td width="50%"><img src="docs/user-guide/screenshots/05-cost-calculation-general.png" alt="Teklif hesaplama ekranı"></td>
+    <td width="50%"><img src="docs/user-guide/screenshots/16-payment-calendar.png" alt="Ödeme ve kullanım takvimi"></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Teklif ve maliyet hesaplama</strong></td>
+    <td align="center"><strong>Ödeme/Kullanım Takvimi</strong></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/user-guide/screenshots/13-realization-general.png" alt="Gerçekleşme analizi"></td>
+    <td width="50%"><img src="docs/user-guide/screenshots/19-internal-report.png" alt="İç finansal analiz raporu"></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Planlanan ve gerçekleşen sonuçlar</strong></td>
+    <td align="center"><strong>Şirket içi finansal rapor</strong></td>
+  </tr>
+</table>
 
-Vitest yalnızca `src/**/*.{test,spec}.{ts,tsx}` dosyalarını toplar; Playwright senaryoları `e2e/` altında ayrı çalışır. Coverage HTML raporu `coverage/` klasöründedir. Testler; 12 müşteri tipi, 8 hazır ödeme planı matrisi, özel planlar, fatura, vergi, GES, gecikme, kısmi ödeme, kredi/valör, gerçekleşme, migration ve temel arayüz bileşenlerini kapsar.
+Tüm ekranlar deterministik demo verisiyle oluşturulmuştur. Gerçek müşteri veya gizli şirket verisi içermez.
 
-## Klasör yapısı
+## Temel iş kuralları
 
-```text
-k2-enerjipro-3.0/
-├─ e2e/                         # Playwright uçtan uca akışları
-├─ src/
-│  ├─ app/router/               # Route tanımları
-│  ├─ app/store/                # Zustand uygulama durumu
-│  ├─ components/               # Ortak UI, grafik ve ödeme planı bileşenleri
-│  ├─ config/                   # Tarife, politika, varsayılanlar ve plan şablonları
-│  ├─ domain/                   # Saf hesaplama motorları
-│  ├─ pages/                    # Route sayfaları
-│  ├─ services/export/          # CSV/JSON indirme
-│  ├─ services/migration/       # 2.17 dönüşümü
-│  ├─ services/storage/         # Dexie ve repository katmanı
-│  ├─ tests/                    # Vitest/RTL testleri
-│  └─ types/                    # Paylaşılan TypeScript modelleri
-├─ playwright.config.ts
-├─ vite.config.ts
-└─ package.json
-```
-
-## Hesaplama motoru
-
-Hesaplar `src/domain` altında saf fonksiyonlar olarak tutulur. Politika sürümü `K2-ENERJIPRO-3.0.0` olarak her sonuç snapshot'ına yazılır. Kullanım aralığı fatura dönemlerine bölünür; kısmi ay tüketimi gün payıyla dağıtılır. Ara hesaplarda yuvarlama yapılmaz, yalnızca arayüz gösteriminde biçimlendirme uygulanır.
-
-Temel aktif enerji hesabı:
+<details>
+<summary><strong>Aktif enerji, BTV ve KDV formülleri</strong></summary>
 
 ```text
 Aktif enerji tabanı = Şebekeden tüketim × (PTF + YEKDEM)
-Teklif marjı         = Aktif enerji tabanı × Teklif oranı
-Aktif enerji satışı  = Aktif enerji tabanı + Teklif marjı
-```
+Teklif marjı        = Aktif enerji tabanı × Teklif oranı
+Aktif enerji satışı = Aktif enerji tabanı + Teklif marjı
 
-Net kâr; teklif marjından dengesizlik, PİÜ, ödeme kanalı ve kredi maliyetlerini düşer; valör ve gerçekleşmiş gecikme gelirlerini ekler. Vergiler kâr sayılmaz.
-
-## Vergi formülleri
-
-```text
 BTV matrahı = Aktif enerji satışı
 BTV         = BTV matrahı × BTV oranı
 
@@ -102,74 +96,181 @@ KDV matrahı = Aktif enerji satışı
             + Dağıtım
             + Sözleşme gücü
             + BTV
-KDV         = KDV matrahı × KDV oranı
 
-Brüt fatura = Aktif enerji satışı
-            + Dağıtım
-            + Sözleşme gücü
-            + BTV
-            + KDV
+KDV = KDV matrahı × KDV oranı
 ```
 
-KDV ve BTV oranları 12 müşteri tipi için 2026 referans tablosundan gelir. Dağıtımsız model seçildiğinde dağıtım bedeli sıfırlanır.
+Ara hesaplarda yuvarlama yapılmaz; biçimlendirme yalnız kullanıcı arayüzünde uygulanır.
 
-## GES modeli
+</details>
 
-2.17'deki GES alacağı yaklaşımı değiştirilmiştir. Basit modda girilen oran, müşterinin eşzamanlı öz tüketim oranıdır:
+<details>
+<summary><strong>Günlük kredi ve valör sırası</strong></summary>
 
 ```text
-Öz tüketim         = min(Brüt tüketim, Brüt tüketim × Öz tüketim oranı)
-Şebekeden tüketim  = max(0, Brüt tüketim - Öz tüketim)
-Öz tüketim tasarrufu = Öz tüketim × Aktif enerji birim fiyatı
+Açılış bakiyesi
+→ tedarikçi çıkışları ve iadeler
+→ faiz bazı
+→ kredi maliyeti / valör getirisi
+→ müşteri tahsilatları
+→ gecikme tahsilatları
+→ kapanış bakiyesi
 ```
 
-Gelişmiş sayaç modunda eşzamanlı öz tüketim, şebeke çekişi, şebekeye veriş ve mahsuplaşma sonrası ihtiyaç fazlası ayrı alanlardır. İhtiyaç fazlası üretim satın alımı öz tüketim tasarrufuna eklenmez; ayrı nakit çıkışı ve belge olarak ele alınır.
+- Gün bazı: `365`
+- Hafta sonu ve tatillerde faiz işler.
+- Aynı gün alınan müşteri tahsilatı o gün valör üretmez.
 
-## Ödeme planı
+</details>
 
-Sekiz hazır şablon ile özel plan editörü bulunur. Satırlar dönem bazında veya sözleşmede bir kez uygulanabilir; tüm dönemler ya da seçili dönemler hedeflenebilir. Tutar türleri arasında yüzde, sabit TL ve kalan bakiye; tarih referansları arasında dönem başlangıcı, dönem sonu, fatura tarihi, vade tarihi ve manuel tarih vardır.
-
-Taksit, komisyon, valör günü, ödeme kanalı ve manuel not satır bazında saklanır. Plan doğrulaması; pozitif tutarları, zorunlu manuel tarihi, seçili dönemleri ve bakiye uyumunu kontrol eder. Müşteri ödemesi ile EPSAŞ net nakit girişi ayrı tutulur.
-
-## Gerçekleşme simülasyonu
-
-Gerçekleşme senaryosu, kaynak nihai teklifin değişmez snapshot'ını ve sürümünü kopyalar. Gerçek tahsilatlar, ödeme kanalı, fatura bağlantısı, tarih ve tutarla eklenir. Atanmamış ödemeler en eski vadeden başlayarak açık faturalara dağıtılır; fazla tutar müşteri avansı olur.
-
-Planlanan ve gerçekleşen nakit akışı, kredi/valör sonucu, gecikme alacağı, aylık kâr ve sapma aynı senaryoda yeniden hesaplanır. Senaryoyu değiştirmek kaynak teklifi değiştirmez.
-
-## Gecikme motoru
-
-Varsayılan aylık oran `%5,55`, gün esası `360` ve yöntem basit faizdir:
+<details>
+<summary><strong>Gecikme bedeli</strong></summary>
 
 ```text
-Gecikme bedeli = Açık anapara × Geciken gün × (Aylık oran / 100) × 12 / 360
+Gecikme bedeli = Açık anapara
+               × Geciken gün
+               × (Aylık oran / 100)
+               × 12 / 360
 ```
 
-Vade günü gecikmiş sayılmaz. Hafta sonu ve tatiller gecikme gününe dahildir. Vade öncesi/üzerindeki ödemeler başlangıç anaparasını azaltır. Kısmi ödemeler tarih sırasıyla segment oluşturur ve sonraki segment yalnızca kalan anapara üzerinden işler. Gecikme bedeli ile gecikme KDV'si anaparaya eklenip bileşikleştirilmez. Gecikme KDV'si kaynak faturanın efektif KDV oranıyla ayrı hesaplanır.
+Varsayılan aylık oran `%5,55` ve yöntem basit faizdir. Kısmi ödemeler kalan anapara üzerinden yeni segment oluşturur.
 
-## Kredi/valör motoru
+</details>
 
-Nakit akışı günlük çalışır ve gün esası `365`tir. Önce tedarikçi çıkışları ve iadeler uygulanır; gün içi faiz tabanı bu ara bakiyedir:
+## Mimari
+
+Hesaplama kuralları kullanıcı arayüzünden ayrılmış saf domain fonksiyonlarında tutulur. Nihai teklifler, oluşturuldukları andaki fiyat, tarife ve hesaplama değerlerini değiştirilemez snapshot olarak saklar.
 
 ```text
-Negatif bakiye kredi maliyeti = |Bakiye| × Yıllık kredi oranı / 365
-Pozitif bakiye valör geliri   = Bakiye × Yıllık valör oranı / 365
+k2-enerji-pro/
+├─ docs/user-guide/              # Kullanıcı rehberi, PDF ve ekran görüntüleri
+├─ e2e/                          # Playwright uçtan uca senaryoları
+├─ src/
+│  ├─ app/                       # Router ve Zustand store
+│  ├─ components/                # Ortak arayüz ve ödeme planı bileşenleri
+│  ├─ config/                    # Sürüm, tarife, politika ve varsayılanlar
+│  ├─ demo/                      # Deterministik demo veri seti
+│  ├─ domain/                    # Saf hesaplama motorları
+│  │  ├─ financing/
+│  │  ├─ ges/
+│  │  ├─ invoice/
+│  │  ├─ late-fee/
+│  │  ├─ payment-calendar/
+│  │  ├─ payment-plan/
+│  │  ├─ profitability/
+│  │  ├─ realization/
+│  │  ├─ receivables/
+│  │  ├─ reconciliation/
+│  │  ├─ reporting/
+│  │  └─ tariff/
+│  ├─ pages/                     # Route sayfaları
+│  ├─ services/                  # Storage, migration ve export servisleri
+│  ├─ tests/                     # Vitest ve RTL testleri
+│  └─ types/                     # Paylaşılan TypeScript modelleri
+├─ playwright.config.ts
+├─ vite.config.ts
+└─ package.json
 ```
 
-Ardından faiz ve müşteri girişleri kapanış bakiyesine işlenir. EPİAŞ PTF çıkışları teslimat günü ve politika takvim ofsetiyle, diğer tedarikçi/vergi kalemleri kendi vade ofsetleriyle oluşturulur. Hafta sonu ve kullanıcı tanımlı resmi tatiller EPİAŞ ödeme tarihinde dikkate alınır.
+### Tasarım kararları
 
-## Aylık kâr
+- **Immutable teklif snapshot’ı:** Ayarlar değişse bile geçmiş teklif değişmez.
+- **Planlanan/gerçekleşen ayrımı:** Tahmin edilen ve gerçekleşen finansal sonuçlar ayrı tutulur.
+- **Ortak profit ledger:** Aylık ve sözleşme toplamları aynı finansal kaynaktan üretilir.
+- **Receivable ledger:** Açık alacak, tahsilat, müşteri avansı ve iadeler tek kaynaktan izlenir.
+- **UI’dan bağımsız domain:** Hesaplama motorları backend’e taşınabilecek biçimde tarayıcı API’lerinden ayrılmıştır.
+- **Ara yuvarlama yok:** Para hesaplarında doğruluk korunur; yalnız gösterim biçimlendirilir.
 
-İki görünüm birbirinden ayrıdır:
+## Teknoloji yığını
 
-- Tahakkuk bazlı kâr, geliri ve maliyeti tüketimin ekonomik ayına yazar.
-- Nakit bazlı sonuç, paranın gerçekten giriş/çıkış yaptığı ayı gösterir.
+- **Frontend:** React, TypeScript, Vite, React Router
+- **State:** Zustand
+- **Form ve doğrulama:** React Hook Form, Zod
+- **Yerel veritabanı:** Dexie / IndexedDB
+- **Tarih işlemleri:** date-fns
+- **Grafikler:** Recharts
+- **Unit ve component testleri:** Vitest, React Testing Library
+- **E2E:** Playwright / Chromium
+- **Kod kalitesi:** ESLint, Prettier, TypeScript strict mode
 
-Tahakkuk bazlı satır; aktif enerji geliri, teklif marjı, dengesizlik, PİÜ, kanal maliyeti, kredi, valör ve gecikme gelirini gösterir. KDV, BTV ve gecikme KDV'si kâr değildir. Nakit sonucu, nakit girişleri eksi tedarikçi çıkışları, iadeler ve kredi maliyetidir.
+## Hızlı başlangıç
 
-## Veri saklama
+### Gereksinimler
 
-Veriler `k2-energipro-3` adlı IndexedDB veritabanında Dexie ile tutulur. Tablolar:
+- Güncel Node.js LTS
+- npm
+
+### Kurulum
+
+```bash
+git clone https://github.com/thesaidd/k2-enerji-pro.git
+cd k2-enerji-pro
+npm install
+npx playwright install chromium
+```
+
+### Geliştirme sunucusu
+
+```bash
+npm run dev
+```
+
+Uygulama: `http://localhost:4173`
+
+### Production build
+
+```bash
+npm run build
+npm run preview
+```
+
+Preview: `http://localhost:4174`
+
+### Demo verisini yükleme
+
+1. Uygulamayı açın.
+2. **Ayarlar** sayfasına gidin.
+3. **Demo verisi yükle** düğmesine basın.
+4. Uyarıyı okuyup onaylayın.
+5. Üç müşteri, altı teklif ve örnek gerçekleşme senaryosu otomatik olarak eklenir.
+
+## Testler
+
+```bash
+npm run lint
+npm run build
+npm run test
+npm run test:coverage
+npm run test:e2e
+```
+
+Son doğrulanan durum:
+
+| Kontrol | Sonuç |
+|---|---:|
+| Unit / integration | **317 / 317** |
+| E2E | **6 / 6** |
+| Statements | **%89,64** |
+| Branches | **%73,29** |
+| Functions | **%87,40** |
+| Lines | **%91,77** |
+
+Test kapsamı; 12 müşteri tipi, 9 ödeme planı şablonu, vergi hesapları, dönemsel tarifeler, GES, mutabakat, alacak ledger’ı, kredi/valör, gerçekleşme, gecikme, raporlama, migration ve yedekleme akışlarını içerir.
+
+## Kullanıcı dokümantasyonu
+
+| Belge | Açıklama |
+|---|---|
+| [Kullanıcı Rehberi — PDF](docs/user-guide/K2_EnerjiPro_3.0.3_Kullanici_Rehberi.pdf) | 36 sayfalık ayrıntılı rehber |
+| [Kullanıcı Rehberi — Markdown](docs/user-guide/K2_EnerjiPro_3.0.3_Kullanici_Rehberi.md) | GitHub üzerinden okunabilir ana kaynak |
+| [Hızlı Başlangıç](docs/user-guide/K2_EnerjiPro_3.0.3_Hizli_Baslangic.md) | İlk kullanım için kısa akış |
+| [Demo Sunum Akışı](docs/user-guide/K2_EnerjiPro_3.0.3_Demo_Sunum_Akisi.md) | 10–15 dakikalık ürün demosu |
+| [Sorun Giderme](docs/user-guide/K2_EnerjiPro_3.0.3_Sorun_Giderme.md) | Kullanıcı ve teknik çözüm adımları |
+| [Tüm dokümantasyon](docs/user-guide/README.md) | Belge ve ekran görüntüsü envanteri |
+
+## Veri saklama ve yedekleme
+
+Veriler tarayıcıdaki `k2-energipro-3` isimli IndexedDB veritabanında saklanır:
 
 - `customers`
 - `costDrafts`
@@ -177,31 +278,65 @@ Veriler `k2-energipro-3` adlı IndexedDB veritabanında Dexie ile tutulur. Tablo
 - `realizationScenarios`
 - `settings`
 
-Repository katmanı sayfaları Dexie ayrıntılarından ayırır. Ayarlar ekranı tüm veriyi sürümlü JSON yedeğine aktarabilir ve aynı sürümdeki yedeği tek transaction içinde geri yükleyebilir. Bu işlem yereldir; tarayıcı profili silinirse yedeklenmemiş veri kaybolur.
+Ayarlar ekranından sürümlü JSON yedeği alınabilir. Restore işleminden önce dosya doğrulanır, kayıt özeti gösterilir ve veriler tek transaction içinde yazılır. Geçersiz yedek mevcut verileri silmez.
 
-## 2.17 migration
+> Tarayıcı profili temizlenmeden veya başka bilgisayara geçilmeden önce yedek alınmalıdır.
 
-Migration iki şekilde çalışır: Ayarlar sayfasına 2.17 JSON verisi yapıştırma veya bilinen legacy localStorage anahtarlarını algılama. Önce müşteri, teklif, arşiv ve dönüştürülemeyen kayıt sayılarıyla önizleme üretilir; kullanıcı onayından sonra yazılır.
+## Desteklenen ve desteklenmeyen GES özellikleri
 
-Eski teklif sonucu `legacySnapshot` içinde denetim izi olarak korunur, fakat 3.0 sonucu güncel hesap motoruyla yeniden üretilir. Eski GES oranı `GES Öz Tüketim Oranı` olarak yorumlanır; eski GES alacağı ve tahsilat gecikmesi yeni modele taşınmaz. Bu değişiklik migration uyarısında açıkça gösterilir. Tatiller mevcut ayarlarla birleştirilir ve tekilleştirilir.
-
-## Raporlama
-
-Rapor ekranında maliyet analizi, müşteri teklifi, iç kârlılık, planlanan/gerçekleşen nakit, aylık kâr, gecikme, teklif karşılaştırması ve tarife/tasarruf rapor türleri bulunur. Kaynak teklif sürümü, hesap zamanı ve politika sürümü raporda görünür. CSV ve JSON indirme ile yazdırmaya uygun PDF görünümü sağlanır. Grafikler CSV olarak dışa aktarılabilir.
+| Özellik | Durum |
+|---|---|
+| Basit öz tüketim | ✅ Destekleniyor |
+| Gelişmiş sayaç modeli | ✅ Destekleniyor |
+| Aylık mahsuplaşma | ✅ Destekleniyor |
+| Manuel mahsuplaşma | ✅ Destekleniyor |
+| PTF / PTF+YEKDEM / manuel alım fiyatı | ✅ Destekleniyor |
+| İhtiyaç fazlası `cash_outflow` | ✅ Destekleniyor |
+| Saatlik mahsuplaşma | ⛔ Demo sürümünde yok |
+| Faturadan mahsup (`invoice_offset`) | ⛔ Demo sürümünde yok |
 
 ## Bilinen sınırlamalar
 
-- Uygulama yalnızca frontend'dir; kullanıcı hesabı, yetkilendirme, merkezi veritabanı, eşzamanlı çalışma ve sunucu denetim kaydı yoktur.
-- Tarife ve mevzuat parametreleri otomatik bir resmi kaynaktan güncellenmez; 2026 referans değerleri uygulama konfigürasyonundadır.
-- Resmi EPİAŞ/takas süreçleriyle çevrimiçi entegrasyon yoktur; ödeme tarihleri sürümlü politika ofsetleriyle modellenir.
-- PDF çıktısı tarayıcının yazdırma altyapısına, XLSX çıktısı yerine tablo raporları CSV/JSON dışa aktarımına dayanır.
-- Gelişmiş GES sonucunun doğruluğu kullanıcı tarafından girilen sayaç/mahsuplaşma verisinin doğruluğuna bağlıdır.
-- Büyük Recharts bağımlılığı nedeniyle üretim derlemesi 500 kB chunk uyarısı verir; build başarılıdır.
+- Uygulama frontend-only çalışır; backend, kullanıcı hesabı ve rol bazlı yetki bulunmaz.
+- Veriler merkezi sunucu yerine kullanıcının tarayıcısında tutulur.
+- EPİAŞ, e-fatura veya resmî tarife servisleriyle canlı bağlantı yoktur.
+- Tarife ve mevzuat parametreleri otomatik güncellenmez.
+- Saatlik GES verisi ve faturadan mahsup modu desteklenmez.
+- PDF çıktısı tarayıcının yazdırma altyapısını kullanır.
+- Production build başarılıdır; ana JavaScript paketi için code-splitting uyarısı devam eder.
 
-## Backend'e geçiş notları
+## Yol haritası
 
-Domain fonksiyonları tarayıcı API'lerinden bağımsızdır ve sunucu paketine taşınabilir. Backend geçişinde Dexie repository arayüzleri HTTP/API repository'leriyle değiştirilmeli; snapshot ve politika sürümü korunmalıdır. Para alanları veritabanında sabit hassasiyetli decimal tipinde tutulmalı, kimlik ve zaman damgaları sunucu tarafından üretilmeli, transaction ve optimistic concurrency uygulanmalıdır.
+Demo sonrasındaki ürünleştirme hedefleri:
 
-Kimlik doğrulama, rol bazlı yetki, tenant/müşteri ayrımı, değiştirilemez audit log, resmi tarife sürümleme, sunucu tarafı PDF/XLSX üretimi ve migration idempotency anahtarları backend kapsamına alınmalıdır. Aynı golden ve regression testleri hem frontend domain paketinde hem backend hesap servisinde çalıştırılmalıdır.
-#   t h e s a i d d d . g i t h u b . i o  
- 
+- FastAPI tabanlı backend ve PostgreSQL,
+- kullanıcı girişi, rol ve yetki yönetimi,
+- şirket/tenant izolasyonu,
+- teklif onay ve versiyonlama akışı,
+- değiştirilemez audit log,
+- merkezi yedekleme ve hata izleme,
+- canlı tarife ve piyasa veri entegrasyonları,
+- sunucu tarafı PDF/XLSX rapor üretimi.
+
+## Sürümleme
+
+- `v3.0.1-market-calendar` — aylık piyasa verileri ve ödeme takvimi
+- `v3.0.2-p0b-reconciliation` — finansman ve kârlılık mutabakatı
+- `v3.0.3-demo-ready` — kontrollü demo sürümü
+
+## Geliştirici
+
+**Yusuf Sait Sakoğlu**  
+Bilgisayar Mühendisliği · Full-stack geliştirme · Finansal modelleme · Enerji teknolojileri
+
+GitHub: [@thesaidd](https://github.com/thesaidd)
+
+---
+
+<div align="center">
+
+**K2 EnerjiPro 3.0.3 — Demo Ready**
+
+Bu proje portföy ve kontrollü demo amacıyla yayımlanmıştır.
+
+</div>
