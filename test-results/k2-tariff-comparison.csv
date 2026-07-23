@@ -1,0 +1,13 @@
+customerTypeId,customerTypeName,tariffType,subscriberGroup,voltageLevel,termType,actualVatRate,expectedVatRate,vatStatus,actualBtvRate,expectedBtvRate,btvStatus,distributionUnitPrice,contractPowerValue,tariffVersion,tariffValidityStart,tariffValidityEnd,sourceLabel
+cift-terimli-og-sanayi,Çift Terimli OG · Sanayi,Çift Terimli OG,Sanayi,OG,Çift Terimli,20,20,PASS,1,1,PASS,1070.498,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+cift-terimli-og-ticarethane,Çift Terimli OG · Ticarethane,Çift Terimli OG,Ticarethane,OG,Çift Terimli,20,20,PASS,5,5,PASS,1668.345,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+cift-terimli-og-mesken,Çift Terimli OG · Mesken,Çift Terimli OG,Mesken,OG,Çift Terimli,10,10,PASS,5,5,PASS,1652.488,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+cift-terimli-og-tarimsal-sulama,Çift Terimli OG · Tarımsal Sulama,Çift Terimli OG,Tarımsal Sulama,OG,Çift Terimli,10,10,PASS,1,1,PASS,1374.008,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+tek-terimli-og-sanayi,Tek Terimli OG · Sanayi,Tek Terimli OG,Sanayi,OG,Tek Terimli,20,20,PASS,1,1,PASS,1182.457,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+tek-terimli-og-ticarethane,Tek Terimli OG · Ticarethane,Tek Terimli OG,Ticarethane,OG,Tek Terimli,20,20,PASS,5,5,PASS,2081.065,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+tek-terimli-og-mesken,Tek Terimli OG · Mesken,Tek Terimli OG,Mesken,OG,Tek Terimli,10,10,PASS,5,5,PASS,2040.402,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+tek-terimli-og-tarimsal-sulama,Tek Terimli OG · Tarımsal Sulama,Tek Terimli OG,Tarımsal Sulama,OG,Tek Terimli,10,10,PASS,1,1,PASS,1710.785,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+tek-terimli-ag-sanayi,Tek Terimli AG · Sanayi,Tek Terimli AG,Sanayi,AG,Tek Terimli,20,20,PASS,1,1,PASS,1829.503,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+tek-terimli-ag-ticarethane,Tek Terimli AG · Ticarethane,Tek Terimli AG,Ticarethane,AG,Tek Terimli,20,20,PASS,5,5,PASS,2479.368,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+tek-terimli-ag-mesken,Tek Terimli AG · Mesken,Tek Terimli AG,Mesken,AG,Tek Terimli,10,10,PASS,5,5,PASS,2424.9,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
+tek-terimli-ag-tarimsal-sulama,Tek Terimli AG · Tarımsal Sulama,Tek Terimli AG,Tarımsal Sulama,AG,Tek Terimli,10,10,PASS,1,1,PASS,2037.247,0,2026.1,2026-01-01,2026-12-31,2026 demo referans tarife tablosu
