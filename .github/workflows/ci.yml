@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - test/k2-financial-matrix
 
 permissions:
   contents: read
